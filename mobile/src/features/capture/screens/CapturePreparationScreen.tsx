@@ -2,7 +2,7 @@ import { useIsFocused, usePreventRemove } from '@react-navigation/native';
 import { Camera } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { View } from 'react-native';
 
 import type { CameraPermissionGateway } from '@/domain/capture/cameraPermission';
 import { getCaptureFeedback } from '@/domain/capture/captureFeedback';
@@ -33,6 +33,7 @@ import { CaptureControls } from '../components/CaptureControls';
 import { CaptureFeedbackCard } from '../components/CaptureFeedbackCard';
 import { CaptureResultNotice } from '../components/CaptureResultNotice';
 import { CaptureStartCard } from '../components/CaptureStartCard';
+import { CaptureTimerCard } from '../components/CaptureTimerCard';
 import { useCameraPermission } from '../hooks/useCameraPermission';
 import { useCaptureFlow } from '../hooks/useCaptureFlow';
 
@@ -66,7 +67,6 @@ export function CapturePreparationScreen({
   const confirmAction = useConfirmAction();
   const theme = useAppTheme();
   const isFocused = useIsFocused();
-  const { height } = useWindowDimensions();
   const camera = useCameraPermission(permissionGateway);
   const [hasAssistance, setHasAssistance] = useState(preferences.defaultAssistance);
   const [hasSafetyConfirmation, setHasSafetyConfirmation] = useState(false);
@@ -227,44 +227,54 @@ export function CapturePreparationScreen({
         />
       ) : (
         <>
-          <View className="gap-2">
-            <CameraPermissionBadge permission={camera.permission} />
-            <View
-              className="overflow-hidden rounded-[24px] bg-surface"
-              style={{ height: Math.max(200, Math.min(320, height * 0.32)) }}
-            >
-              {poseGateway.isAvailable && flow.isPreviewActive ? (
-                <CameraPreview
-                  active
-                  showSkeleton={preferences.showSkeleton}
-                  requiredLandmarks={requiredLandmarks}
-                  onStatus={flow.onCameraStatus}
-                />
-              ) : (
-                <View className="flex-1 items-center justify-center gap-3 p-4">
-                  <Camera color={theme.muted} size={32} />
-                  <AppText className="text-center">
-                    {isPaused ? '采集已暂停' : '相机预览未开启'}
-                  </AppText>
-                </View>
-              )}
+          <AppCardStack>
+            <View className="gap-2">
+              <CameraPermissionBadge permission={camera.permission} />
+              <View
+                className="w-full overflow-hidden rounded-[24px] bg-surface"
+                style={{ aspectRatio: 4 / 3 }}
+              >
+                {poseGateway.isAvailable && flow.isPreviewActive ? (
+                  <CameraPreview
+                    active
+                    showSkeleton={preferences.showSkeleton}
+                    requiredLandmarks={requiredLandmarks}
+                    onStatus={flow.onCameraStatus}
+                  />
+                ) : (
+                  <View className="flex-1 items-center justify-center gap-3 p-4">
+                    <Camera color={theme.muted} size={32} />
+                    <AppText className="text-center">
+                      {isPaused ? '采集已暂停' : '相机预览未开启'}
+                    </AppText>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
-          {preferences.showCaptureHints ? <AppText>{instructions.framing}</AppText> : null}
-          {instructions.measurementNotice ? (
-            <AppText>{instructions.measurementNotice}</AppText>
-          ) : null}
-          {isCapturing || isPaused ? (
-            <CaptureFeedbackCard
-              session={flow.session}
-              camera={flow.camera}
-              isPreviewActive={flow.isPreviewActive}
-              durationMs={flow.durationMs}
-              hasAssistance={hasAssistance}
-              showCaptureHints={preferences.showCaptureHints}
-            />
-          ) : flow.camera.status === 'error' ? (
-            <AppNotice>{feedback.message}</AppNotice>
+            {isCapturing || isPaused ? (
+              <>
+                <CaptureFeedbackCard
+                  session={flow.session}
+                  camera={flow.camera}
+                  isPreviewActive={flow.isPreviewActive}
+                  showCaptureHints={preferences.showCaptureHints}
+                />
+                <CaptureTimerCard
+                  phase={flow.session.phase}
+                  durationMs={flow.durationMs}
+                  hasAssistance={hasAssistance}
+                />
+              </>
+            ) : null}
+          </AppCardStack>
+          {!isCapturing && !isPaused ? (
+            <>
+              {preferences.showCaptureHints ? <AppText>{instructions.framing}</AppText> : null}
+              {instructions.measurementNotice ? (
+                <AppText>{instructions.measurementNotice}</AppText>
+              ) : null}
+              {flow.camera.status === 'error' ? <AppNotice>{feedback.message}</AppNotice> : null}
+            </>
           ) : null}
           {!isCapturing &&
           (!isPaused || camera.permission !== 'granted' || camera.error !== null) ? (

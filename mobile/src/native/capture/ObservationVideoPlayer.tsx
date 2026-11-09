@@ -1,11 +1,14 @@
 import { requireNativeView, requireOptionalNativeModule } from 'expo';
+import { Chip } from 'heroui-native/chip';
 import { useEffect, useReducer } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { NativeSyntheticEvent, ViewProps } from 'react-native';
 
 import type { ObservationVideoPlayerProps } from '@/domain/observations/observationVideo';
 import { AppButton } from '@/shared/ui/AppButton';
+import { AppCard } from '@/shared/ui/AppCard';
 import { AppLoading } from '@/shared/ui/AppLoading';
+import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppSelect } from '@/shared/ui/AppSelect';
 import { AppText } from '@/shared/ui/AppText';
 
@@ -48,9 +51,11 @@ function VideoPlayback({ video, isActive }: ObservationVideoPlayerProps) {
 
   if (!NativePlayer) {
     return (
-      <View className="rounded-[24px] bg-surface p-4">
-        <AppText>请重新构建并安装应用，加载新版视频播放器。</AppText>
-      </View>
+      <AppCard>
+        <AppNotice isInline status="warning">
+          请重新构建并安装应用，加载新版视频播放器。
+        </AppNotice>
+      </AppCard>
     );
   }
   const segment = video.segments[state.segmentIndex];
@@ -82,14 +87,18 @@ function VideoPlayback({ video, isActive }: ObservationVideoPlayerProps) {
             pointerEvents="none"
             accessible={false}
           />
-          <View
+          <Chip
             pointerEvents="none"
-            className="absolute left-4 top-4 rounded-full bg-black/50 px-3 py-1"
+            accessibilityRole="text"
+            size="sm"
+            variant="secondary"
+            background={null}
+            className="absolute left-4 top-4 max-w-full bg-black/50 px-3 py-1"
           >
-            <AppText variant="meta" className="text-white">
+            <Chip.Label className="text-xs font-normal leading-[18px] text-white">
               原始视频
-            </AppText>
-          </View>
+            </Chip.Label>
+          </Chip>
           {isLoading || hasError ? (
             <View className="absolute inset-0 items-center justify-center gap-3 bg-black/70 p-4">
               {hasError ? (
