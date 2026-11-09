@@ -7,5 +7,6 @@ export const layoutTokens = {
   minimumTouchSize: 48,
   sectionGap: 24,
   cardGap: 16,
+  videoAspectRatio: 4 / 3,
   tabBarHeight: 56,
 } as const;

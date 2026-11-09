@@ -35,7 +35,7 @@ const NativePreview = nativeModule
 export const poseCameraGateway: PoseCameraGateway = {
   isAvailable: nativeModule !== null,
   canRecord: nativeModule?.recordingVersion?.() === 1,
-  canRecordVideo: nativeModule?.videoRecordingVersion?.() === 1,
+  canRecordVideo: nativeModule?.videoRecordingVersion?.() === 2,
   async beginRecording(resume) {
     if (!nativeModule?.beginRecording) throw new Error('请更新采集模块');
     await nativeModule.beginRecording(resume);

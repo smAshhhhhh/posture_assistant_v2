@@ -16,6 +16,7 @@ import type { PoseRecording } from '@/domain/observations/poseRecording';
 import type { RehabTask } from '@/domain/tasks/taskCatalog';
 import type { AppPreferences } from '@/domain/settings/appPreferences';
 import { getTaskInstructions } from '@/domain/tasks/taskInstructions';
+import { layoutTokens } from '@/shared/theme/tokens';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppButton } from '@/shared/ui/AppButton';
 import { useConfirmAction } from '@/shared/ui/AppConfirmationProvider';
@@ -232,7 +233,7 @@ export function CapturePreparationScreen({
               <CameraPermissionBadge permission={camera.permission} />
               <View
                 className="w-full overflow-hidden rounded-[24px] bg-surface"
-                style={{ aspectRatio: 4 / 3 }}
+                style={{ aspectRatio: layoutTokens.videoAspectRatio }}
               >
                 {poseGateway.isAvailable && flow.isPreviewActive ? (
                   <CameraPreview
@@ -317,7 +318,7 @@ export function CapturePreparationScreen({
         </>
       )}
       {shouldRecord && (!poseGateway.canRecord || !poseGateway.canRecordVideo) ? (
-        <AppNotice status="warning">请重新构建安装包，加载关键点和原始视频记录能力。</AppNotice>
+        <AppNotice status="warning">请重新构建安装包，加载 4:3 视频与关键点记录能力。</AppNotice>
       ) : null}
       {shouldRecord && !canSaveObservation ? (
         <AppNotice status="warning">请重新构建安装包，加载此任务的报告存储能力。</AppNotice>

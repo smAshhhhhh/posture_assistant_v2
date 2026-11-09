@@ -1,10 +1,11 @@
 import { requireNativeView, requireOptionalNativeModule } from 'expo';
 import { Chip } from 'heroui-native/chip';
 import { useEffect, useReducer } from 'react';
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import type { NativeSyntheticEvent, ViewProps } from 'react-native';
 
 import type { ObservationVideoPlayerProps } from '@/domain/observations/observationVideo';
+import { layoutTokens } from '@/shared/theme/tokens';
 import { AppButton } from '@/shared/ui/AppButton';
 import { AppCard } from '@/shared/ui/AppCard';
 import { AppLoading } from '@/shared/ui/AppLoading';
@@ -39,7 +40,6 @@ export function ObservationVideoPlayer(props: ObservationVideoPlayerProps) {
 }
 
 function VideoPlayback({ video, isActive }: ObservationVideoPlayerProps) {
-  const { height } = useWindowDimensions();
   const [state, dispatch] = useReducer(
     reduceVideoPlayback,
     video.segments.map((segment) => segment.durationMs),
@@ -65,67 +65,70 @@ function VideoPlayback({ video, isActive }: ObservationVideoPlayerProps) {
   const hasError = state.status === 'error';
   return (
     <View className="gap-3">
-      <View className="overflow-hidden rounded-[24px] bg-black">
-        <View style={{ height: Math.max(200, Math.min(320, height * 0.32)) }}>
-          <NativePlayer
-            key={state.generation}
-            source={segment.uri}
-            active={isActive}
-            playing={isActive && state.isPlaying}
-            seekPositionMs={state.seekPositionMs}
-            seekRequestId={state.seekRequestId}
-            onPlaybackStatus={(event) => {
-              if (isActive) {
-                dispatch({
-                  type: 'status',
-                  generation: state.generation,
-                  value: event.nativeEvent,
-                });
-              }
-            }}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-            accessible={false}
-          />
-          <Chip
-            pointerEvents="none"
-            accessibilityRole="text"
-            size="sm"
-            variant="secondary"
-            background={null}
-            className="absolute left-4 top-4 max-w-full bg-black/50 px-3 py-1"
-          >
-            <Chip.Label className="text-xs font-normal leading-[18px] text-white">
-              原始视频
-            </Chip.Label>
-          </Chip>
-          {isLoading || hasError ? (
-            <View className="absolute inset-0 items-center justify-center gap-3 bg-black/70 p-4">
-              {hasError ? (
-                <>
-                  <AppText accessibilityRole="alert" className="text-center text-white">
-                    此片段暂时无法播放
-                  </AppText>
-                  <AppButton variant="secondary" onPress={() => dispatch({ type: 'retry' })}>
-                    重试播放
-                  </AppButton>
-                </>
-              ) : (
-                <AppLoading isInverse>正在加载视频…</AppLoading>
-              )}
-            </View>
-          ) : null}
-        </View>
-        <VideoPlaybackControls
-          positionMs={positionMs}
-          durationMs={state.durationMs}
-          isPlaying={state.isPlaying || (state.scrub?.shouldResume ?? false)}
-          isEnded={state.status === 'ended'}
-          isDisabled={!isActive || isLoading || hasError || state.isSeeking}
-          onToggle={() => dispatch({ type: 'toggle' })}
-          onScrub={(value) => dispatch({ type: 'scrub', positionMs: value })}
-          onSeek={(value) => dispatch({ type: 'seek', positionMs: value })}
+      <View
+        className="w-full overflow-hidden rounded-[24px] bg-black"
+        style={{ aspectRatio: layoutTokens.videoAspectRatio }}
+      >
+        <NativePlayer
+          key={state.generation}
+          source={segment.uri}
+          active={isActive}
+          playing={isActive && state.isPlaying}
+          seekPositionMs={state.seekPositionMs}
+          seekRequestId={state.seekRequestId}
+          onPlaybackStatus={(event) => {
+            if (isActive) {
+              dispatch({
+                type: 'status',
+                generation: state.generation,
+                value: event.nativeEvent,
+              });
+            }
+          }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+          accessible={false}
         />
+        <Chip
+          pointerEvents="none"
+          accessibilityRole="text"
+          size="sm"
+          variant="secondary"
+          background={null}
+          className="absolute left-4 top-4 max-w-full bg-black/50 px-3 py-1"
+        >
+          <Chip.Label className="text-xs font-normal leading-[18px] text-white">
+            原始视频
+          </Chip.Label>
+        </Chip>
+        <View className="absolute bottom-0 left-0 right-0">
+          <VideoPlaybackControls
+            positionMs={positionMs}
+            durationMs={state.durationMs}
+            isPlaying={state.isPlaying || (state.scrub?.shouldResume ?? false)}
+            isEnded={state.status === 'ended'}
+            isDisabled={!isActive || isLoading || hasError || state.isSeeking}
+            onToggle={() => dispatch({ type: 'toggle' })}
+            onScrub={(value) => dispatch({ type: 'scrub', positionMs: value })}
+            onSeek={(value) => dispatch({ type: 'seek', positionMs: value })}
+          />
+        </View>
+        {isLoading || hasError ? (
+          <View className="absolute inset-0 items-center justify-center gap-3 bg-black/70 p-4">
+            {hasError ? (
+              <>
+                <AppText accessibilityRole="alert" className="text-center text-white">
+                  此片段暂时无法播放
+                </AppText>
+                <AppButton variant="secondary" onPress={() => dispatch({ type: 'retry' })}>
+                  重试播放
+                </AppButton>
+              </>
+            ) : (
+              <AppLoading isInverse>正在加载视频…</AppLoading>
+            )}
+          </View>
+        ) : null}
       </View>
       {video.segments.length > 1 ? (
         <AppSelect

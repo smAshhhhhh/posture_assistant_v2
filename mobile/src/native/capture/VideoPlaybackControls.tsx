@@ -31,7 +31,7 @@ export function VideoPlaybackControls({
   const Icon = isPlaying ? Pause : isEnded ? RotateCcw : Play;
   const label = isPlaying ? '暂停视频' : isEnded ? '重播当前片段' : '播放视频';
   return (
-    <View className="flex-row items-center gap-4 bg-black p-4">
+    <View className="flex-row items-center gap-4 bg-black/60 p-4">
       <Button
         isIconOnly
         variant="secondary"

@@ -184,7 +184,7 @@ export function useCaptureFlow({
       shouldRecord &&
       (!gateway.canRecord || !gateway.canRecordVideo || !gateway.beginRecording)
     ) {
-      setRecordingError('请重新构建安装包，加载关键点和原始视频记录能力。');
+      setRecordingError('请重新构建安装包，加载 4:3 视频与关键点记录能力。');
       return;
     }
     if (shouldRecord && !canSaveObservation) {

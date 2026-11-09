@@ -35,7 +35,7 @@ class PoseCameraModule : Module() {
     }
 
     Function("recordingVersion") { 1 }
-    Function("videoRecordingVersion") { 1 }
+    Function("videoRecordingVersion") { 2 }
     AsyncFunction("beginRecording") { resume: Boolean, promise: Promise ->
       try {
         check(views.none { it.hasPendingVideo() }) { "上一段录像尚未停止" }

@@ -6,12 +6,15 @@ import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.os.Handler
 import android.os.Looper
+import android.util.Rational
 import android.view.Surface
 import android.widget.FrameLayout
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -37,7 +40,7 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
   var recorder: PoseRecorder? = null
   private val preview = PreviewView(context).apply {
     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-    scaleType = PreviewView.ScaleType.FIT_CENTER
+    scaleType = PreviewView.ScaleType.FILL_CENTER
   }
   private val overlay = PoseOverlayView(context)
 
@@ -166,8 +169,12 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
               )
             ).build()
           ).build()
-        val viewPort = preview.viewPort ?: error("预览区域未就绪")
+        // 按显示方向统一取景；CameraX 将同一裁切实际编码进视频。
+        val viewPort = ViewPort.Builder(Rational(4, 3), rotation)
+          .setScaleType(ViewPort.FILL_CENTER)
+          .build()
         val video = VideoCapture.withOutput(Recorder.Builder()
+          .setAspectRatio(AspectRatio.RATIO_4_3)
           .setQualitySelector(QualitySelector.from(
             Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
           )).build()).apply { targetRotation = rotation }
