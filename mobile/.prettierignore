@@ -7,3 +7,5 @@ ios/
 dist/
 coverage/
 uniwind-types.d.ts
+modules/**/android/build/
+modules/**/android/.gradle/

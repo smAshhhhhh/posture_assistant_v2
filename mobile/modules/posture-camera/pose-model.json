@@ -1,0 +1,8 @@
+{
+  "name": "pose_landmarker_lite",
+  "version": "float16/1",
+  "fileName": "pose_landmarker_lite.task",
+  "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task?generation=1682624736756847",
+  "sizeBytes": 5777746,
+  "md5": "04a75ddf7c811ac7a1a4523266dd7d88"
+}

@@ -1,31 +1,40 @@
-import { Input } from 'heroui-native/input';
-import { Check, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { abilityLevelLabels, affectedSideLabels } from '@/domain/patients/types';
 import type { PatientSummary } from '@/domain/patients/types';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppButton } from '@/shared/ui/AppButton';
+import { AppAvatar } from '@/shared/ui/AppAvatar';
 import { AppCard } from '@/shared/ui/AppCard';
+import { AppCardStack } from '@/shared/ui/AppCardStack';
+import { AppPressable } from '@/shared/ui/AppPressable';
 import { AppHeader } from '@/shared/ui/AppHeader';
+import { AppLoading } from '@/shared/ui/AppLoading';
+import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTextField } from '@/shared/ui/AppTextField';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
 interface PatientsScreenProps {
   readonly patients: readonly PatientSummary[];
-  readonly selectedPatientId: string | null;
-  readonly onSelectPatient: (patientId: string) => void;
   readonly onCreatePatient: () => void;
+  readonly status: 'loading' | 'ready' | 'error';
+  readonly error: string | null;
+  readonly onRefresh: () => void;
+  readonly onOpenPatient: (patientId: string) => void;
 }
 
 export function PatientsScreen({
   patients,
-  selectedPatientId,
-  onSelectPatient,
   onCreatePatient,
+  status,
+  error,
+  onRefresh,
+  onOpenPatient,
 }: PatientsScreenProps) {
   const [search, setSearch] = useState('');
   const theme = useAppTheme();
@@ -44,67 +53,74 @@ export function PatientsScreen({
         </AppText>
       </View>
       {patients.length > 0 ? (
-        <View className="gap-2">
-          <AppText nativeID="patient-search-label" variant="caption">
-            搜索患者编号
-          </AppText>
-          <Input
-            accessibilityLabel="搜索患者编号"
-            autoCapitalize="characters"
-            className="min-h-[52px] rounded-xl"
-            onChangeText={setSearch}
-            placeholder="输入患者编号"
-            value={search}
-          />
-        </View>
+        <AppTextField
+          label="搜索患者编号"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          onChangeText={setSearch}
+          placeholder="输入患者编号"
+          value={search}
+        />
+      ) : null}
+      {status === 'loading' ? <AppLoading>正在读取本机档案…</AppLoading> : null}
+      {error ? (
+        <>
+          <AppNotice>{error}</AppNotice>
+          <AppButton onPress={onRefresh} variant="secondary">
+            重新读取
+          </AppButton>
+        </>
       ) : null}
       {filteredPatients.length > 0 ? (
         <View className="gap-3">
           <AppText className="text-muted" variant="caption">
-            {search.trim() ? '搜索结果' : '最近使用'}
+            {search.trim() ? '搜索结果' : '患者档案'}
           </AppText>
-          {filteredPatients.map((patient) => (
-            <Pressable
-              accessibilityLabel={`选择患者 ${patient.patientCode}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: patient.id === selectedPatientId }}
-              key={patient.id}
-              onPress={() => onSelectPatient(patient.id)}
-            >
-              <AppCard className="min-h-[82px] flex-row items-center gap-3 p-4">
-                <View className="flex-1 gap-1">
-                  <AppText className="font-medium">{patient.patientCode}</AppText>
-                  <AppText className="text-muted" variant="caption">
-                    {affectedSideLabels[patient.affectedSide]} ·{' '}
-                    {patient.abilityLevel ? abilityLevelLabels[patient.abilityLevel] : '待专业评估'}
-                  </AppText>
-                  <AppText className="text-muted" variant="meta">
-                    {formatDateTime(patient.lastObservedAt)}
-                  </AppText>
-                </View>
-                {patient.id === selectedPatientId ? (
-                  <Check color={theme.accent} size={20} />
-                ) : (
-                  <ChevronRight color={theme.muted} size={20} />
-                )}
-              </AppCard>
-            </Pressable>
-          ))}
+          <AppCardStack>
+            {filteredPatients.map((patient) => (
+              <AppPressable
+                key={patient.id}
+                accessibilityLabel={`查看患者 ${patient.patientCode} 的档案`}
+                accessibilityRole="button"
+                className="rounded-[24px]"
+                onPress={() => onOpenPatient(patient.id)}
+              >
+                <AppCard className="min-h-[82px] flex-row items-center gap-3">
+                  <AppAvatar label={patient.patientCode} imageUri={patient.photoUri} size="md" />
+                  <View className="min-w-0 flex-1 gap-1">
+                    <AppText className="font-medium">{patient.patientCode}</AppText>
+                    <AppText className="text-muted" variant="caption">
+                      {affectedSideLabels[patient.affectedSide]} ·{' '}
+                      {patient.abilityLevel
+                        ? abilityLevelLabels[patient.abilityLevel]
+                        : '待专业评估'}
+                    </AppText>
+                    <AppText className="text-muted" variant="meta">
+                      {formatDateTime(patient.lastObservedAt)}
+                    </AppText>
+                  </View>
+                  <ChevronRight color={theme.muted} size={20} accessible={false} />
+                </AppCard>
+              </AppPressable>
+            ))}
+          </AppCardStack>
         </View>
-      ) : (
+      ) : status === 'ready' ? (
         <EmptyState
           title={patients.length === 0 ? '建立第一位患者的档案' : '没有找到这位患者'}
           description={
             patients.length === 0
-              ? '使用患者编号管理资料，档案和观察记录保存在本机。'
+              ? '使用患者编号管理资料，档案和专业评估保存在本机。'
               : '请检查编号，或清空搜索后查看全部患者。'
           }
         />
-      )}
+      ) : null}
       <AppText className="text-muted" variant="caption">
         能力等级由治疗师评定；档案只保存在本机。
       </AppText>
-      <AppButton onPress={onCreatePatient}>新建患者档案</AppButton>
+      <AppButton isDisabled={status !== 'ready'} onPress={onCreatePatient}>
+        新建患者档案
+      </AppButton>
     </ScreenLayout>
   );
 }

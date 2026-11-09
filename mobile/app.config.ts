@@ -4,14 +4,20 @@ const config: ExpoConfig = {
   name: 'PostureAssist',
   slug: 'postureassist',
   version: '0.1.0',
+  icon: './assets/branding/app-icon.png',
   scheme: 'postureassist',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   platforms: ['android', 'ios'],
   android: {
+    adaptiveIcon: {
+      foregroundImage: './assets/branding/adaptive-foreground.png',
+      backgroundColor: '#F7FAFF',
+    },
     package: 'com.postureassist.mobile',
     allowBackup: false,
-    predictiveBackGestureEnabled: true,
+    // 兼容 Android 13～15，将系统返回手势交给 React Navigation。
+    predictiveBackGestureEnabled: false,
     permissions: ['android.permission.CAMERA'],
     blockedPermissions: [
       'android.permission.RECORD_AUDIO',

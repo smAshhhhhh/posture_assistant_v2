@@ -5,14 +5,20 @@ import type { RehabTask } from '@/domain/tasks/taskCatalog';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppButton } from '@/shared/ui/AppButton';
 import { AppCard } from '@/shared/ui/AppCard';
+import { AppPressable } from '@/shared/ui/AppPressable';
 import { AppText } from '@/shared/ui/AppText';
 
 interface TaskOverviewCardProps {
   readonly task: RehabTask;
   readonly onSelectTask: () => void;
+  readonly onStartObservation: () => void;
 }
 
-export function TaskOverviewCard({ task, onSelectTask }: TaskOverviewCardProps) {
+export function TaskOverviewCard({
+  task,
+  onSelectTask,
+  onStartObservation,
+}: TaskOverviewCardProps) {
   const theme = useAppTheme();
 
   return (
@@ -21,7 +27,12 @@ export function TaskOverviewCard({ task, onSelectTask }: TaskOverviewCardProps) 
       <AppText className="text-muted" variant="caption">
         选择康复任务，按提示摆好手机。
       </AppText>
-      <View className="gap-3 rounded-[20px] bg-surface-secondary p-5">
+      <AppPressable
+        accessibilityLabel={`当前动作 ${task.name}，点击更换观察动作`}
+        accessibilityRole="button"
+        className="gap-3 rounded-[20px] bg-surface-secondary p-4"
+        onPress={onSelectTask}
+      >
         <AppText className="text-muted" variant="meta">
           {task.bodyRegion} · {task.posture}
         </AppText>
@@ -32,8 +43,8 @@ export function TaskOverviewCard({ task, onSelectTask }: TaskOverviewCardProps) 
         <AppText className="text-muted" variant="caption">
           {task.cameraView} · {task.estimatedDuration}
         </AppText>
-      </View>
-      <AppButton onPress={onSelectTask}>选择任务，开始观察</AppButton>
+      </AppPressable>
+      <AppButton onPress={onStartObservation}>开始观察</AppButton>
     </AppCard>
   );
 }

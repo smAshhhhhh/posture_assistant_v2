@@ -1,0 +1,66 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.postureassist'
+version = '0.1.0'
+
+android {
+  namespace 'com.postureassist.camera'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // 版本由现有 React Native Gradle Plugin 统一约束。
+  implementation 'com.facebook.react:react-android'
+  implementation 'androidx.camera:camera-core:1.6.2'
+  implementation 'androidx.camera:camera-camera2:1.6.2'
+  implementation 'androidx.camera:camera-lifecycle:1.6.2'
+  implementation 'androidx.camera:camera-view:1.6.2'
+  implementation 'androidx.camera:camera-video:1.6.2'
+  implementation 'com.google.mediapipe:tasks-vision:1.2.2'
+}
+
+// 构建只校验本地模型，缺失时交由开发者手动下载。
+def verifyPoseModel = tasks.register('verifyPoseModel') {
+  def specification = file('../pose-model.json')
+  def model = file('src/main/assets/pose_landmarker_lite.task')
+  def fingerprint = file('src/main/assets/pose-model-lock.json')
+  inputs.file(specification)
+  inputs.files(model, fingerprint)
+
+  doLast {
+    if (!model.isFile() || !fingerprint.isFile()) {
+      throw new GradleException('缺少姿态模型，请在 mobile 目录手动执行 npm run model:download。')
+    }
+    def expected = new JsonSlurper().parse(specification)
+    def locked = new JsonSlurper().parse(fingerprint)
+    def sha256 = MessageDigest.getInstance('SHA-256')
+    def md5 = MessageDigest.getInstance('MD5')
+    model.withInputStream { stream ->
+      byte[] buffer = new byte[65536]
+      int count
+      while ((count = stream.read(buffer)) > 0) {
+        sha256.update(buffer, 0, count)
+        md5.update(buffer, 0, count)
+      }
+    }
+    if (model.length() != expected.sizeBytes ||
+        md5.digest().encodeHex().toString() != expected.md5 ||
+        sha256.digest().encodeHex().toString() != locked.sha256 ||
+        locked.version != expected.version) {
+      throw new GradleException('姿态模型校验失败，请检查模型文件及 pose-model-lock.json。')
+    }
+  }
+}
+
+tasks.named('preBuild').configure {
+  dependsOn verifyPoseModel
+}

@@ -11,41 +11,25 @@ const context = {
   patientId: 'test-patient',
   taskId: 'elbow_flexion_extension',
   affectedSide: 'right',
-  requiresSafetyConfirmation: false,
 };
 const readiness = {
   hasPatient: true,
-  requiresSafetyConfirmation: false,
-  hasSafetyConfirmation: false,
-  permission: 'granted',
-  isCameraReady: true,
-  isModelReady: true,
-  hasRequiredLandmarks: true,
+  hasSafetyConfirmation: true,
   isAppActive: true,
 };
 const start = (session = createCaptureSession(context)) =>
   transitionCaptureSession(session, { type: 'start', atMs: 1_000, readiness });
 
-test('缺少任一开始条件时不能启动', () => {
+test('未确认、无患者或应用不在前台时不能启动', () => {
   const failures = [
     { hasPatient: false },
-    { requiresSafetyConfirmation: true, hasSafetyConfirmation: false },
-    { permission: 'unknown' },
-    { permission: 'denied' },
-    { permission: 'blocked' },
-    { permission: 'unavailable' },
-    { isCameraReady: false },
-    { isModelReady: false },
-    { hasRequiredLandmarks: false },
+    { hasSafetyConfirmation: false },
     { isAppActive: false },
   ];
 
   for (const failure of failures) {
     const conditions = { ...readiness, ...failure };
-    const session = createCaptureSession({
-      ...context,
-      requiresSafetyConfirmation: conditions.requiresSafetyConfirmation,
-    });
+    const session = createCaptureSession(context);
     assert.ok(getCaptureBlockers(conditions).length > 0);
     assert.equal(
       transitionCaptureSession(session, { type: 'start', atMs: 1_000, readiness: conditions }),
@@ -54,21 +38,27 @@ test('缺少任一开始条件时不能启动', () => {
   }
 });
 
-test('不能通过传入条件绕过患者和站立任务的安全要求', () => {
-  for (const overrides of [{ patientId: '' }, { requiresSafetyConfirmation: true }]) {
-    const session = createCaptureSession({ ...context, ...overrides });
-    assert.equal(start(session), session);
-  }
+test('不能通过传入条件绕过真实患者归属', () => {
+  const session = createCaptureSession({ ...context, patientId: '' });
+  assert.equal(start(session), session);
 });
 
-test('站立任务确认安全后可以开始', () => {
-  const session = createCaptureSession({ ...context, requiresSafetyConfirmation: true });
-  const result = transitionCaptureSession(session, {
-    type: 'start',
-    atMs: 1_000,
-    readiness: { ...readiness, hasSafetyConfirmation: true },
-  });
-  assert.equal(result.phase, 'capturing');
+test('坐姿与站立任务都要人工确认，启动不依赖识别结果或预判质量', () => {
+  for (const taskId of ['elbow_flexion_extension', 'sit_to_stand']) {
+    const session = createCaptureSession({ ...context, taskId });
+    assert.equal(
+      transitionCaptureSession(session, {
+        type: 'start',
+        atMs: 1_000,
+        readiness: { ...readiness, hasSafetyConfirmation: false },
+      }),
+      session,
+    );
+    const result = start(session);
+    assert.equal(result.phase, 'capturing');
+    assert.equal(result.captureQuality, null);
+    assert.equal(result.taskStatus, null);
+  }
 });
 
 test('有效时长排除暂停时间，普通结束不推断患者完成状态和质量', () => {
@@ -84,7 +74,7 @@ test('有效时长排除暂停时间，普通结束不推断患者完成状态�
   assert.equal(ended.captureQuality, null);
 });
 
-test('后台和权限中断后，必须重新满足条件才能显式恢复', () => {
+test('中断后保持暂停，前台且保留人工确认时才能显式恢复', () => {
   for (const reason of ['background', 'permission_lost', 'device_error']) {
     const paused = transitionCaptureSession(start(), { type: 'pause', atMs: 3_000, reason });
     assert.equal(paused.phase, 'paused');
@@ -93,7 +83,15 @@ test('后台和权限中断后，必须重新满足条件才能显式恢复', ()
       transitionCaptureSession(paused, {
         type: 'resume',
         atMs: 5_000,
-        readiness: { ...readiness, permission: 'denied' },
+        readiness: { ...readiness, isAppActive: false },
+      }),
+      paused,
+    );
+    assert.equal(
+      transitionCaptureSession(paused, {
+        type: 'resume',
+        atMs: 5_500,
+        readiness: { ...readiness, hasSafetyConfirmation: false },
       }),
       paused,
     );

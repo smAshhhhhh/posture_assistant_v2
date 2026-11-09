@@ -1,6 +1,5 @@
 export const layoutTokens = {
-  pagePadding: 20,
-  widePagePadding: 24,
+  pagePadding: 16,
   maxContentWidth: 600,
   cardRadius: 24,
   controlRadius: 12,
@@ -8,5 +7,5 @@ export const layoutTokens = {
   minimumTouchSize: 48,
   sectionGap: 24,
   cardGap: 16,
-  tabBarHeight: 72,
+  tabBarHeight: 56,
 } as const;

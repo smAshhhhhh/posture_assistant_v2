@@ -6,6 +6,7 @@ export const designPatients: readonly PatientSummary[] = [
   {
     id: 'design-patient-0086',
     patientCode: 'PA-0086',
+    photoUri: null,
     affectedSide: 'right',
     abilityLevel: 'mild',
     lastObservedAt: '2026-11-05T09:32:00+08:00',
@@ -13,6 +14,7 @@ export const designPatients: readonly PatientSummary[] = [
   {
     id: 'design-patient-0082',
     patientCode: 'PA-0082',
+    photoUri: null,
     affectedSide: 'left',
     abilityLevel: 'moderate',
     lastObservedAt: '2026-11-04T14:10:00+08:00',
@@ -20,6 +22,7 @@ export const designPatients: readonly PatientSummary[] = [
   {
     id: 'design-patient-0079',
     patientCode: 'PA-0079',
+    photoUri: null,
     affectedSide: 'right',
     abilityLevel: null,
     lastObservedAt: null,

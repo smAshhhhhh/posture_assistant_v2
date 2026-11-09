@@ -1,30 +1,44 @@
 import { useState } from 'react';
 
-import { designObservations, designPatients } from '@/dev/designFixtures';
-import type { ObservationSummary } from '@/domain/observations/types';
-import type { PatientSummary } from '@/domain/patients/types';
+import { patientRepository } from '@/data/patients/patientRepository';
+import { observationRepository } from '@/data/observations/observationRepository';
+import { preferencesRepository } from '@/data/settings/preferencesRepository';
+import { localDataRepository } from '@/data/storage/localDataRepository';
+import { useAppPreferences } from '@/features/settings/hooks/useAppPreferences';
+import { useObservationRecords } from '@/features/history/hooks/useObservationRecords';
 import { defaultRehabTask } from '@/domain/tasks/taskCatalog';
 import type { RehabTask } from '@/domain/tasks/taskCatalog';
-
-const isDesignPreview = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_PREVIEW === '1';
+import { usePatientRecords } from '@/features/patients/hooks/usePatientRecords';
 
 export function useWorkspace() {
-  const patients: readonly PatientSummary[] = isDesignPreview ? designPatients : [];
-  const observations: readonly ObservationSummary[] = isDesignPreview ? designObservations : [];
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
-    patients[0]?.id ?? null,
-  );
+  const records = usePatientRecords(patientRepository);
+  const history = useObservationRecords(observationRepository);
+  const preferences = useAppPreferences(preferencesRepository);
+  const observations = history.observations;
+  const patients = records.patients.map((patient) => ({
+    ...patient,
+    lastObservedAt:
+      observations.find((item) => item.patientId === patient.id)?.observedAt ??
+      (history.status === 'ready' ? null : patient.lastObservedAt),
+  }));
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [task, setTask] = useState<RehabTask>(defaultRehabTask);
-  const patient = patients.find((item) => item.id === selectedPatientId) ?? null;
-  const patientObservations = observations.filter((item) => item.patientId === selectedPatientId);
+  const patient = patients.find((item) => item.id === selectedPatientId) ?? patients[0] ?? null;
+  const patientObservations = observations.filter((item) => item.patientId === patient?.id);
   const selectPatient = (patientId: string) => {
-    if (patients.some((item) => item.id === patientId)) {
-      setSelectedPatientId(patientId);
-    }
+    setSelectedPatientId(patientId);
   };
 
   return {
-    isDesignPreview,
+    records,
+    history,
+    observationRepository,
+    patientRepository,
+    localDataRepository,
+    preferences,
+    refreshAll: async () => {
+      await Promise.all([records.refresh(), history.refresh()]);
+    },
     patients,
     patient,
     task,

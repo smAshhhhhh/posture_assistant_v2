@@ -5,6 +5,7 @@ export type AbilityLevel = 'mild' | 'moderate' | 'severe';
 export interface PatientSummary {
   readonly id: string;
   readonly patientCode: string;
+  readonly photoUri: string | null;
   readonly affectedSide: AffectedSide;
   readonly abilityLevel: AbilityLevel | null;
   readonly lastObservedAt: string | null;

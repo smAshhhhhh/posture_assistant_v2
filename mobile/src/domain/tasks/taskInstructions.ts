@@ -7,6 +7,7 @@ interface TaskInstructions {
   readonly framing: string;
   readonly support: string;
   readonly safety: string;
+  readonly measurementNotice?: string;
 }
 
 export function getTaskInstructions(
@@ -35,7 +36,9 @@ export function getTaskInstructions(
     case 'seated_trunk_lean':
       return {
         movement: '坐稳后在舒适范围内缓慢前倾，再回到坐直的位置，不勉强增加幅度。',
-        framing: '侧面拍摄，肩、髋、膝完整入镜。',
+        framing: `${side}侧朝向镜头，肩、髋、膝完整入镜。`,
+        measurementNotice:
+          '本次倾角以画面竖直方向为参照。手机保持竖直、镜头水平并固定，镜头倾斜会影响结果。',
         support: '使用稳固的椅子，双脚着地，按现场需要陪护。',
         safety: seatedSafety,
       };
@@ -48,22 +51,29 @@ export function getTaskInstructions(
       };
     case 'sit_to_stand':
       return {
-        movement: '在治疗师指导和保护下，从稳固的椅子起身，再缓慢坐回。',
-        framing: '按治疗师指导摆放侧面机位，头部到双脚完整入镜。',
+        movement: '在治疗师指导和保护下，先坐稳片刻，再起身、站稳片刻，最后缓慢坐回并坐稳。',
+        framing: `${side}侧朝向固定镜头，头部到双脚完整入镜，双脚留在原位。`,
+        measurementNotice:
+          '从稳定坐姿开始，手机固定、镜头水平，避免移动椅子和双脚。报告结合膝夹角与髋部抬升识别往返，无法判断是否接触椅面或独立站稳。',
         support: '确认椅子稳固、地面防滑，记录扶手及人工辅助。',
         safety: standingSafety,
       };
     case 'march_in_place':
       return {
-        movement: '在治疗师指导和保护下原地交替抬脚，按舒适节奏进行。',
-        framing: '按治疗师指导摆放机位，头部到双脚完整入镜。',
+        movement: '先稳定站立至少半秒，再在治疗师指导和保护下原地交替抬脚并放回。',
+        framing: '侧面机位水平固定，头部到双脚完整入镜，双侧髋、膝和踝均须清晰可见。',
+        measurementNotice:
+          '开始后先站稳至少半秒；机位保持水平固定，双腿清晰可见。暂停恢复后需重新站稳再抬脚。',
         support: '确认地面防滑、有陪护，记录扶持和辅助器具。',
         safety: standingSafety,
       };
     case 'short_walk':
       return {
-        movement: '沿治疗师确认的短距离路线行走，使用平时所需的辅助器具。',
-        framing: '按治疗师指导摆放机位，路线和全身保持在拍摄范围内。',
+        movement:
+          '沿治疗师确认的直线路线，以舒适节奏从画面一侧走向另一侧，使用平时所需的辅助器具。',
+        framing: '侧面机位水平固定，路线平行画面，全程双腿清晰入镜，不跟拍或转弯。',
+        measurementNotice:
+          '固定手机，不跟拍；沿平行画面的直线行走，双侧肩、髋、膝和踝保持入镜。周期与位移只描述二维投影，不提供米制步长或步速。',
         support: '路线无障碍、有足够空间和陪护，记录人工与器具辅助。',
         safety: standingSafety,
       };

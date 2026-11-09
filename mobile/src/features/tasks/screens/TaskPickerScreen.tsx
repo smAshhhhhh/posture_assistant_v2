@@ -1,5 +1,7 @@
-import { Check, ShieldCheck } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { RadioGroup } from 'heroui-native/radio-group';
+import { Button } from 'heroui-native/button';
+import { ChevronRight, ShieldCheck } from 'lucide-react-native';
+import { View } from 'react-native';
 
 import { rehabTasks } from '@/domain/tasks/taskCatalog';
 import type { RehabTask } from '@/domain/tasks/taskCatalog';
@@ -12,10 +14,16 @@ import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 interface TaskPickerScreenProps {
   readonly selectedTask: RehabTask;
   readonly onSelectTask: (task: RehabTask) => void;
+  readonly onOpenTask: (task: RehabTask) => void;
   readonly onBack: () => void;
 }
 
-export function TaskPickerScreen({ selectedTask, onSelectTask, onBack }: TaskPickerScreenProps) {
+export function TaskPickerScreen({
+  selectedTask,
+  onSelectTask,
+  onOpenTask,
+  onBack,
+}: TaskPickerScreenProps) {
   const theme = useAppTheme();
 
   return (
@@ -28,36 +36,76 @@ export function TaskPickerScreen({ selectedTask, onSelectTask, onBack }: TaskPic
           根据患者能力选择，站立与步行任务需治疗师确认安全条件。
         </AppText>
       </View>
-      <View className="gap-3">
-        {rehabTasks.map((task) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: task.id === selectedTask.id }}
-            key={task.id}
-            onPress={() => onSelectTask(task)}
-          >
-            <AppCard className="flex-row items-center gap-3 p-4">
-              <View className="flex-1 gap-1">
-                <AppText className="font-medium">{task.name}</AppText>
-                <AppText className="text-muted" variant="caption">
-                  {task.bodyRegion} · {task.posture}
-                </AppText>
-                {task.requiresSafetyConfirmation ? (
-                  <View className="flex-row items-center gap-2">
-                    <ShieldCheck color={theme.muted} size={16} />
-                    <AppText className="text-muted" variant="meta">
-                      开始前需确认安全条件
-                    </AppText>
+      <RadioGroup
+        className="gap-4"
+        accessibilityLabel="当前观察动作"
+        value={selectedTask.id}
+        onValueChange={(taskId) => {
+          const task = rehabTasks.find((item) => item.id === taskId);
+          if (task) onSelectTask(task);
+        }}
+      >
+        {rehabTasks.map((task) => {
+          const isSelected = task.id === selectedTask.id;
+          return (
+            <AppCard
+              key={task.id}
+              className={
+                'min-h-[82px] flex-row items-stretch overflow-hidden border ' +
+                (isSelected ? 'border-accent' : 'border-transparent')
+              }
+            >
+              {isSelected ? (
+                <View pointerEvents="none" className="absolute inset-0 bg-accent/5" />
+              ) : null}
+              <RadioGroup.Item
+                accessibilityLabel={`选择${task.name}作为观察动作`}
+                className="min-w-0 flex-1 p-0"
+                hitSlop={{ top: 16, bottom: 16, left: 16 }}
+                value={task.id}
+              >
+                <View className="flex-1 gap-1">
+                  <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
+                    <AppText className="shrink font-medium">{task.name}</AppText>
+                    {isSelected ? (
+                      <AppText
+                        variant="caption"
+                        className="font-medium text-accent-soft-foreground"
+                      >
+                        当前动作
+                      </AppText>
+                    ) : null}
                   </View>
-                ) : null}
-              </View>
-              {task.id === selectedTask.id ? <Check color={theme.accent} size={20} /> : null}
+                  <AppText className="text-muted" variant="caption">
+                    {task.bodyRegion} · {task.posture}
+                  </AppText>
+                  {task.requiresSafetyConfirmation ? (
+                    <View className="flex-row items-center gap-2">
+                      <ShieldCheck color={theme.muted} size={16} />
+                      <AppText className="text-muted" variant="meta">
+                        开始前需确认安全条件
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+              </RadioGroup.Item>
+              <Button
+                isIconOnly
+                variant="ghost"
+                accessibilityLabel={`查看${task.name}的任务说明`}
+                accessibilityRole="button"
+                className="min-h-14 w-14 items-center justify-end rounded-full p-0"
+                hitSlop={{ top: 16, bottom: 16, right: 16 }}
+                onPress={() => onOpenTask(task)}
+              >
+                <ChevronRight color={theme.muted} size={20} />
+              </Button>
             </AppCard>
-          </Pressable>
-        ))}
-      </View>
+          );
+        })}
+      </RadioGroup>
       <AppText className="text-muted" variant="caption">
-        选择任务后查看动作说明并确认安全条件，再进入采集准备。
+        点击卡片选定动作并返回首页；右侧箭头查看任务说明。
       </AppText>
     </ScreenLayout>
   );

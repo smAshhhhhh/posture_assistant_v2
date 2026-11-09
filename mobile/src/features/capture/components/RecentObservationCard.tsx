@@ -1,5 +1,6 @@
 import { FileText } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { Chip } from 'heroui-native/chip';
+import { View } from 'react-native';
 
 import { taskStatusLabels } from '@/domain/observations/types';
 import type { ObservationSummary } from '@/domain/observations/types';
@@ -7,6 +8,7 @@ import { affectedSideLabels } from '@/domain/patients/types';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppCard } from '@/shared/ui/AppCard';
+import { AppPressable } from '@/shared/ui/AppPressable';
 import { AppText } from '@/shared/ui/AppText';
 
 interface RecentObservationCardProps {
@@ -18,7 +20,12 @@ export function RecentObservationCard({ observation, onPress }: RecentObservatio
   const theme = useAppTheme();
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="查看最近记录" onPress={onPress}>
+    <AppPressable
+      className="rounded-[24px]"
+      accessibilityRole="button"
+      accessibilityLabel="查看最近记录"
+      onPress={onPress}
+    >
       <AppCard className="min-h-[84px] flex-row items-center gap-3 p-4">
         <FileText color={theme.foreground} size={22} />
         <View className="flex-1 gap-1">
@@ -28,12 +35,18 @@ export function RecentObservationCard({ observation, onPress }: RecentObservatio
             {affectedSideLabels[observation.affectedSide]}
           </AppText>
         </View>
-        <View className="shrink-0 rounded-md bg-default px-2 py-1">
-          <AppText className="text-muted" variant="meta">
+        <Chip
+          className="max-w-[45%] shrink"
+          pointerEvents="none"
+          accessibilityRole="text"
+          size="sm"
+          variant="secondary"
+        >
+          <Chip.Label className="shrink text-xs leading-[18px] text-muted">
             {taskStatusLabels[observation.taskStatus]}
-          </AppText>
-        </View>
+          </Chip.Label>
+        </Chip>
       </AppCard>
-    </Pressable>
+    </AppPressable>
   );
 }

@@ -3,5 +3,5 @@ import type { ComponentProps } from 'react';
 import { twMerge } from 'tailwind-merge';
 
 export function AppCard({ className, ...props }: ComponentProps<typeof Card>) {
-  return <Card {...props} className={twMerge('rounded-[24px] p-5 shadow-none', className)} />;
+  return <Card {...props} className={twMerge('rounded-[24px] p-4 shadow-none', className)} />;
 }

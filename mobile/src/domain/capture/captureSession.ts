@@ -11,11 +11,17 @@ export type CapturePhase =
 export type CapturePauseReason = 'manual' | 'background' | 'permission_lost' | 'device_error';
 export type SafetyStopReason = 'pain' | 'dizziness' | 'fatigue' | 'other';
 
+export const safetyStopReasonLabels: Record<SafetyStopReason, string> = {
+  pain: '疼痛',
+  dizziness: '头晕',
+  fatigue: '明显疲劳',
+  other: '其他风险',
+};
+
 export interface CaptureContext {
   readonly patientId: string;
   readonly taskId: RehabTaskId;
   readonly affectedSide: AffectedSide;
-  readonly requiresSafetyConfirmation: boolean;
 }
 
 export interface CaptureSession {
@@ -85,7 +91,6 @@ export function transitionCaptureSession(
     const expectedPhase = event.type === 'start' ? 'preparing' : 'paused';
     const readiness = {
       ...event.readiness,
-      requiresSafetyConfirmation: session.context.requiresSafetyConfirmation,
       hasPatient: session.context.patientId.trim().length > 0 && event.readiness.hasPatient,
     };
 

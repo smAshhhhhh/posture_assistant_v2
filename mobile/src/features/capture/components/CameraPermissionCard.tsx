@@ -1,6 +1,8 @@
 import type { CameraPermission } from '@/domain/capture/cameraPermission';
 import { AppButton } from '@/shared/ui/AppButton';
 import { AppCard } from '@/shared/ui/AppCard';
+import { AppLoading } from '@/shared/ui/AppLoading';
+import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
 
 interface CameraPermissionCardProps {
@@ -28,17 +30,23 @@ export function CameraPermissionCard({
 }: CameraPermissionCardProps) {
   const shouldOpenSettings = permission === 'blocked';
 
+  // 已授权状态显示在预览上方，异常仍在正文中提示。
+  if (permission === 'granted') {
+    return error ? <AppNotice>{error}</AppNotice> : null;
+  }
+
   return (
     <AppCard className="gap-3">
-      <AppText className="font-medium" accessibilityLiveRegion="polite">
-        {isBusy ? '正在检查相机权限…' : permissionLabels[permission]}
-      </AppText>
+      {isBusy ? (
+        <AppLoading>正在检查相机权限…</AppLoading>
+      ) : (
+        <AppText className="font-medium">{permissionLabels[permission]}</AppText>
+      )}
       <AppText className="text-muted" variant="caption">
-        相机用于在本机提取动作关键点，原始视频默认不留存。
+        相机用于提取动作关键点并录制无声视频；确认保存后可在本机记录中回放。
       </AppText>
-      {permission !== 'granted' && permission !== 'unavailable' ? (
+      {permission !== 'unavailable' ? (
         <AppButton
-          className="rounded-xl"
           isDisabled={isBusy}
           onPress={shouldOpenSettings ? onOpenSettings : onRequest}
           variant="secondary"
@@ -46,7 +54,7 @@ export function CameraPermissionCard({
           {shouldOpenSettings ? '前往系统设置授权' : '允许使用相机'}
         </AppButton>
       ) : null}
-      {error ? <AppText accessibilityRole="alert">{error}</AppText> : null}
+      {error ? <AppNotice isInline>{error}</AppNotice> : null}
     </AppCard>
   );
 }

@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+dependencies {
+  // 复用现有 React Native 版本，不引入新的第三方库。
+  implementation 'com.facebook.react:react-android'
+}
+
+group = 'com.postureassist'
+version = '0.1.0'
+
+android {
+  namespace 'com.postureassist.patients'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}

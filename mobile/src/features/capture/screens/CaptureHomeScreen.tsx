@@ -1,4 +1,6 @@
-import { Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { Button } from 'heroui-native/button';
+import { View } from 'react-native';
 
 import type { ObservationSummary } from '@/domain/observations/types';
 import type { PatientSummary } from '@/domain/patients/types';
@@ -14,25 +16,31 @@ import { TaskOverviewCard } from '../components/TaskOverviewCard';
 
 interface CaptureHomeScreenProps {
   readonly patient: PatientSummary | null;
+  readonly patients: readonly PatientSummary[];
   readonly task: RehabTask;
   readonly latestObservation: ObservationSummary | null;
-  readonly isDesignPreview: boolean;
-  readonly onSelectPatient: () => void;
+  readonly onSelectPatient: (patientId: string) => void;
+  readonly onCreatePatient: () => void;
   readonly onSelectTask: () => void;
+  readonly onStartObservation: () => void;
   readonly onOpenHistory: () => void;
   readonly onHelp: () => void;
 }
 
 export function CaptureHomeScreen({
   patient,
+  patients,
   task,
   latestObservation,
-  isDesignPreview,
   onSelectPatient,
+  onCreatePatient,
   onSelectTask,
+  onStartObservation,
   onOpenHistory,
   onHelp,
 }: CaptureHomeScreenProps) {
+  const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false);
+
   return (
     <ScreenLayout header={<AppHeader onHelp={onHelp} />}>
       <View className="gap-2">
@@ -42,28 +50,35 @@ export function CaptureHomeScreen({
         <AppText className="text-muted" variant="caption">
           每次观察，都从清晰的动作开始。
         </AppText>
-        {isDesignPreview ? (
-          <AppText className="text-muted" variant="meta">
-            设计预览 · 患者和记录均为虚构样例
-          </AppText>
-        ) : null}
       </View>
       <View className="gap-4">
-        <PatientContextCard patient={patient} onPress={onSelectPatient} />
-        <TaskOverviewCard task={task} onSelectTask={onSelectTask} />
+        <PatientContextCard
+          patient={patient}
+          patients={patients}
+          isOpen={isPatientPickerOpen}
+          onOpenChange={setIsPatientPickerOpen}
+          onSelectPatient={onSelectPatient}
+          onCreatePatient={onCreatePatient}
+        />
+        <TaskOverviewCard
+          task={task}
+          onSelectTask={onSelectTask}
+          onStartObservation={patient ? onStartObservation : () => setIsPatientPickerOpen(true)}
+        />
       </View>
       <View className="gap-4">
         <View className="min-h-12 flex-row items-center justify-between gap-3">
           <AppText variant="section">最近一次</AppText>
-          <Pressable
+          <Button
+            variant="ghost"
             accessibilityRole="button"
-            className="min-h-12 justify-center"
+            className="min-h-12 justify-center rounded-full px-0"
             onPress={onOpenHistory}
           >
             <AppText className="text-muted" variant="caption">
               全部记录
             </AppText>
-          </Pressable>
+          </Button>
         </View>
         {latestObservation ? (
           <RecentObservationCard observation={latestObservation} onPress={onOpenHistory} />

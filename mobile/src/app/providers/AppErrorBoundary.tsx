@@ -2,6 +2,8 @@ import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { layoutTokens } from '@/shared/theme/tokens';
+
 interface AppErrorBoundaryProps {
   readonly children: ReactNode;
 }
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: layoutTokens.pagePadding,
     gap: 16,
     backgroundColor: '#F5F5F5',
   },
@@ -58,7 +60,7 @@ const styles = StyleSheet.create({
   description: { fontSize: 16, lineHeight: 24, color: '#71717A' },
   button: {
     minHeight: 52,
-    borderRadius: 12,
+    borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#18181B',

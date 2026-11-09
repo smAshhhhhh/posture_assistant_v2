@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
 
+import { AppConfirmationProvider } from '@/shared/ui/AppConfirmationProvider';
+
 import { AppErrorBoundary } from './AppErrorBoundary';
 
 Uniwind.setTheme('light');
@@ -20,7 +22,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <SafeAreaProvider>
           <HeroUINativeProvider config={{ devInfo: { stylingPrinciples: false } }}>
             <StatusBar barStyle="dark-content" />
-            {children}
+            <AppConfirmationProvider>{children}</AppConfirmationProvider>
           </HeroUINativeProvider>
         </SafeAreaProvider>
       </AppErrorBoundary>

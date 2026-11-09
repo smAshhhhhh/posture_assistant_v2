@@ -5,7 +5,16 @@ export default [
   ...expoConfig,
   prettierConfig,
   {
-    ignores: ['node_modules/**', '.expo/**', '.local/**', 'android/**', 'ios/**', 'dist/**'],
+    ignores: [
+      'node_modules/**',
+      '.expo/**',
+      '.local/**',
+      'android/**',
+      'ios/**',
+      'dist/**',
+      'modules/**/android/build/**',
+      'modules/**/android/.gradle/**',
+    ],
   },
   {
     files: ['**/*.{ts,tsx}'],
