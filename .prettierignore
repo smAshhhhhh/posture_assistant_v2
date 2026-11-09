@@ -1,0 +1,12 @@
+node_modules/
+package-lock.json
+.expo/
+.local/
+android/
+ios/
+dist/
+coverage/
+materials/design/
+materials/prototypes/
+materials/docs/design/*-readback.json
+materials/docs/development/归档清单.json

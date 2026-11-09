@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@import 'uniwind';
+@import 'heroui-native/styles';
+
+@theme {
+  --radius-panel: 24px;
+  --radius-panel-inner: 12px;
+}

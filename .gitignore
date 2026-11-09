@@ -1,0 +1,59 @@
+# 根目录仅收录应用工程与必要工具配置。
+/*
+!/mobile/
+!/.gitignore
+!/.gitattributes
+!/.editorconfig
+!/.prettierrc.json
+!/.prettierignore
+
+# 资料和说明文档仅保留在本机。
+/materials/
+docs/
+documentation/
+*.md
+*.mdx
+
+# 本机安装的依赖、开发缓存与检查产物。
+node_modules/
+.expo/
+.local/
+.gradle/
+.cxx/
+.cache/
+.npm/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+
+# 原生工程由 Expo 配置和插件生成。
+/mobile/android/
+/mobile/ios/
+*.apk
+*.aab
+*.ipa
+local.properties
+
+# 环境变量和签名材料不纳入版本管理。
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
+# IDE、系统文件和编辑器临时文件。
+.idea/
+.vscode/
+.fleet/
+.vs/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
