@@ -267,7 +267,7 @@ export function useCaptureFlow({
       isPreviewEnabledRef.current = false;
       setIsPreviewEnabled(false);
       updateCamera(initialPoseCameraStream);
-      void release();
+      return release();
     },
     [applyEvent, invalidateStart, release, updateCamera],
   );

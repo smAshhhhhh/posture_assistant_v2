@@ -11,9 +11,9 @@ export function AppLogo({ style }: AppLogoProps) {
   return (
     <SvgXml
       xml={logoSvg}
-      // 裁去原稿的空白画布，保留图形和文字的原有比例。
-      viewBox="20 12 260 96"
-      width={144}
+      // 为放大的文字预留宽度，保持图形的显示比例。
+      viewBox="20 12 280 96"
+      width={155}
       height={54}
       style={style}
       accessible

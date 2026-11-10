@@ -74,6 +74,7 @@ export function CapturePreparationScreen({
   const [hasAssistance, setHasAssistance] = useState(preferences.defaultAssistance);
   const [hasSafetyConfirmation, setHasSafetyConfirmation] = useState(false);
   const [isReading, setIsReading] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
   const [reviewRecording, setReviewRecording] = useState<PoseRecording | null>(null);
   const [canDiscard, setCanDiscard] = useState(false);
@@ -134,6 +135,24 @@ export function CapturePreparationScreen({
     }
   };
 
+  const discard = async () => {
+    if (reading.current || flow.isStarting || flow.isReleasing) return;
+    reading.current = true;
+    setIsDiscarding(true);
+    setReadError(null);
+    try {
+      // 先停止计时并等待录像释放，再删除未保存数据，不触发报告读取。
+      if (!(await flow.stop('pause'))) return;
+      await poseGateway.discardRecording?.();
+      if (mounted.current) setCanDiscard(true);
+    } catch {
+      if (mounted.current) setReadError('未能清理本次采集数据，请重试退出观察。');
+    } finally {
+      reading.current = false;
+      if (mounted.current) setIsDiscarding(false);
+    }
+  };
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -152,40 +171,13 @@ export function CapturePreparationScreen({
       (isCapturing || isPaused || flow.isStarting || (hasFinished && shouldRecord)),
     () => {
       if (reading.current || flow.isStarting || flow.isReleasing) return;
-      if (hasFinished) {
-        confirmAction({
-          title: '放弃本次观察？',
-          description: '采集数据尚未保存，返回后将丢失。',
-          cancelLabel: '继续查看',
-          confirmLabel: '放弃并返回',
-          isDestructive: true,
-          onConfirm: () => {
-            if (reading.current) return;
-            reading.current = true;
-            void poseGateway
-              .discardRecording?.()
-              .then(
-                () => {
-                  if (mounted.current) setCanDiscard(true);
-                },
-                () => {
-                  if (mounted.current) setReadError('未能清理本次视频，请重试放弃。');
-                },
-              )
-              .finally(() => {
-                reading.current = false;
-              });
-          },
-        });
-        return;
-      }
       confirmAction({
-        title: '结束本次观察？',
-        description: '结束后停止相机和姿态识别，可在当前页面确认并保存。',
-        cancelLabel: '继续观察',
-        confirmLabel: '结束观察',
+        title: hasFinished ? '放弃本次观察？' : '退出本次观察？',
+        description: '退出将停止采集并丢弃本次未保存的数据，返回上一页。',
+        cancelLabel: hasFinished ? '继续查看' : '继续观察',
+        confirmLabel: hasFinished ? '放弃并返回' : '退出观察',
         isDestructive: true,
-        onConfirm: () => flow.stop('finish'),
+        onConfirm: () => void discard(),
       });
     },
   );
@@ -211,6 +203,7 @@ export function CapturePreparationScreen({
             phase={flow.session.phase}
             canBegin={flow.canBegin}
             isStarting={flow.isStarting}
+            isDisabled={isDiscarding || flow.isReleasing}
             onBegin={flow.begin}
             onStop={flow.stop}
           />
@@ -231,7 +224,7 @@ export function CapturePreparationScreen({
           releaseError={flow.releaseError}
           session={flow.session}
           canReview={shouldRecord}
-          isReading={isReading}
+          isReading={isReading || isDiscarding}
           onReview={() => void review()}
           onBack={onBack}
           onRetryRelease={() => void flow.retryRelease()}
@@ -339,6 +332,7 @@ export function CapturePreparationScreen({
       ) : null}
       {flow.recordingError ? <AppNotice>{flow.recordingError}</AppNotice> : null}
       {isReading ? <AppLoading>正在读取采集数据…</AppLoading> : null}
+      {isDiscarding ? <AppLoading>正在退出观察…</AppLoading> : null}
       {readError ? <AppNotice>{readError}</AppNotice> : null}
       {flow.session.phase === 'preparing' ? (
         <AppCardStack>

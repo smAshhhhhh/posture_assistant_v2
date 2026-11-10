@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import type { RehabTask } from '@/domain/tasks/taskCatalog';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppCard } from '@/shared/ui/AppCard';
+import { AppMovementIcon } from '@/shared/ui/AppMovementIcon';
 import { AppText } from '@/shared/ui/AppText';
 import { AppTag } from '@/shared/ui/AppTag';
 
@@ -32,14 +33,17 @@ export function TaskOptionCard({ task, isSelected, onOpen }: TaskOptionCardProps
         hitSlop={{ top: 16, bottom: 16, left: 16 }}
         value={task.id}
       >
+        <View className="size-11 shrink-0">
+          <AppMovementIcon name={task.id} size={44} />
+        </View>
         <View className="min-w-0 flex-1 gap-1">
+          <AppText className="font-medium">{task.name}</AppText>
           <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
-            <AppText className="shrink font-medium">{task.name}</AppText>
+            <AppText className="text-muted" variant="caption">
+              {task.posture}
+            </AppText>
             {isSelected ? <AppTag label="当前动作" color="accent" /> : null}
           </View>
-          <AppText className="text-muted" variant="caption">
-            {task.posture}
-          </AppText>
         </View>
       </RadioGroup.Item>
       <Button
@@ -47,7 +51,7 @@ export function TaskOptionCard({ task, isSelected, onOpen }: TaskOptionCardProps
         variant="ghost"
         accessibilityLabel={`查看${task.name}的任务说明`}
         accessibilityRole="button"
-        className="min-h-12 w-12 self-center items-center justify-end rounded-full p-0"
+        className="min-h-12 w-12 shrink-0 self-center items-center justify-end rounded-full p-0"
         hitSlop={{ top: 16, bottom: 16, right: 16 }}
         onPress={onOpen}
       >

@@ -18,13 +18,13 @@ export const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440
           fill="none" stroke="#BFDBFE"
           stroke-width="4" stroke-linecap="round"/>
   </g>
-  <text x="130" y="55"
+  <text x="130" y="52"
         font-family="Inter, Arial, sans-serif"
-        font-size="27" font-weight="650"
+        font-size="36" font-weight="650"
         fill="#1E293B">Posture</text>
-  <text x="130" y="85"
+  <text x="130" y="94"
         font-family="Inter, Arial, sans-serif"
-        font-size="27" font-weight="400"
+        font-size="36" font-weight="400"
         fill="#2563EB">Assistant</text>
 </svg>`;
 
