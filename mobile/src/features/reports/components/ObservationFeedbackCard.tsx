@@ -3,14 +3,14 @@ import { View } from 'react-native';
 import type { AngleAnalysis } from '@/domain/observations/angleAnalysis';
 import type { AngleObservationTaskId } from '@/domain/observations/angleProtocols';
 import { getObservationFeedback } from '@/domain/observations/observationFeedback';
-import type { TaskStatus } from '@/domain/observations/types';
+import type { HistoricalTaskStatus } from '@/domain/observations/types';
 import { AppCard } from '@/shared/ui/AppCard';
 import { AppText } from '@/shared/ui/AppText';
 
 interface ObservationFeedbackCardProps {
   readonly taskId: AngleObservationTaskId;
   readonly analysis: AngleAnalysis;
-  readonly taskStatus: TaskStatus | null;
+  readonly taskStatus: HistoricalTaskStatus | null;
 }
 
 export function ObservationFeedbackCard({

@@ -6,8 +6,10 @@ import android.graphics.RectF
 
 class PoseImageGeometry(
   cropRect: Rect,
-  rotationDegrees: Int,
-  sensorToBuffer: Matrix
+  val rotationDegrees: Int,
+  sensorToBuffer: Matrix,
+  val sourceWidth: Int = cropRect.right,
+  val sourceHeight: Int = cropRect.bottom
 ) {
   val crop = Rect(cropRect)
   val imageWidth: Int

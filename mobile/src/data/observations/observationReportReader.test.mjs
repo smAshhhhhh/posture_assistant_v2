@@ -6,15 +6,13 @@ import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { walkRecording } from '../../domain/observations/shortWalkFixtures.mjs';
+import { createObservationReport } from '../../domain/observations/recordingFixtures.mjs';
 
 const readerSource = await readFile(
   'modules/patient-store/android/src/main/java/com/postureassist/patients/ObservationReportReader.kt',
   'utf8',
 );
 const queries = Array.from(readerSource.matchAll(/"(SELECT [^"]+)"/g), (match) => match[1]);
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
-);
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
 );

@@ -2,6 +2,7 @@ package com.postureassist.patients
 
 import android.content.Context
 import org.json.JSONObject
+import org.json.JSONArray
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
@@ -9,14 +10,15 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 internal class LocalDataExport(private val database: PatientDatabase, private val context: Context) {
-  fun prepare(scope: DataScope, includePose: Boolean): File {
+  fun prepare(scope: DataScope, includePose: Boolean, metrics: String): File {
     val records = LocalDataRecords(database, context)
     val snapshot = records.snapshot(scope)
     return writeDataExport(
       File(context.cacheDir, "data-exports"), File(context.filesDir, "observations"),
       snapshot, scope, includePose, database.readableDatabase.version,
       readReport = { id -> readObservationReport(database.readableDatabase, id) },
-      photoDirectory = File(context.filesDir, "patient-photos")
+      photoDirectory = File(context.filesDir, "patient-photos"),
+      metricRecords = JSONArray(metrics)
     )
   }
 }
@@ -29,8 +31,21 @@ internal fun writeDataExport(
   includePose: Boolean,
   schemaVersion: Int,
   readReport: (String) -> String,
-  photoDirectory: File? = null
+  photoDirectory: File? = null,
+  metricRecords: JSONArray = JSONArray()
 ): File {
+  val metricsById = mutableMapOf<String, JSONObject>()
+  for (index in 0 until metricRecords.length()) {
+    val entry = metricRecords.getJSONObject(index)
+    val id = entry.recordText("recordingId")
+    requireRecord(metricsById.put(id, entry) == null)
+  }
+  val observations = snapshot.getJSONArray("observations")
+  // 指标准备期间可能有删除或新保存，范围变化时要求重新导出。
+  val selectedIds = (0 until observations.length()).map {
+    observations.getJSONObject(it).getString("id")
+  }.toSet()
+  if (metricsById.keys != selectedIds) throw StoreException("CONFLICT")
   check(directory.isDirectory || directory.mkdirs())
   // 导出队列串行，清除上次进程中断遗留的私有临时包。
   directory.listFiles()?.filter { it.isFile }?.forEach { check(it.delete()) }
@@ -39,7 +54,8 @@ internal fun writeDataExport(
     ZipOutputStream(output.outputStream().buffered()).use { zip ->
       zip.json("manifest.json", JSONObject().apply {
         put("format", "posture-assistant-export")
-        put("version", 1)
+        put("version", 2)
+        put("metricSchemaVersion", 1)
         put("createdAt", currentTimestamp())
         put("includesPose", includePose)
         put("includesVideo", false)
@@ -65,12 +81,17 @@ internal fun writeDataExport(
         }
       }
       zip.json("assessments.json", snapshot.getJSONArray("assessments"))
-      val observations = snapshot.getJSONArray("observations")
       for (index in 0 until observations.length()) {
         val row = observations.getJSONObject(index)
         val id = row.getString("id")
         val file = observationPoseFile(poseDirectory, id, row.getString("pose_file"))
-        zip.json("reports/$id.json", JSONObject(readReport(id)))
+        val report = JSONObject(readReport(id))
+        val metrics = checkNotNull(metricsById[id])
+        listOf("taskId", "protocolVersion", "analysisVersion").forEach {
+          requireRecord(metrics.recordText(it) == report.recordText(it))
+        }
+        zip.json("reports/$id.json", report)
+        zip.json("metrics/$id.json", metrics)
         if (!includePose) continue
         if (!file.isFile || file.length() != row.getLong("pose_bytes")) {
           throw StoreException("DATA_CORRUPT")

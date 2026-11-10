@@ -1,11 +1,14 @@
-import type { CaptureSession, SafetyStopReason } from '../capture/captureSession';
+import type { CaptureSession } from '../capture/captureSession';
 import type { PatientProfile } from '../patients/patientRecord';
 import { rehabTasks } from '../tasks/taskCatalog';
 
-import type { AngleAnalysis } from './angleAnalysis';
+import { createTaskAnalysis } from './taskAnalysis';
+import type { TaskAnalysis } from './taskAnalysis';
+import type { SafetyStopReason } from '../capture/legacyCaptureStatus';
 import { getAngleObservationProtocol, isAngleObservationTask } from './angleProtocols';
 import type { AngleObservationTaskId } from './angleProtocols';
 import type { PoseRecording } from './poseRecording';
+import { parsePoseRecording } from './poseRecording';
 import type { ObservationVideo } from './observationVideo';
 import type { ObservationSummary, TaskStatus } from './types';
 import { analyzeObservation } from './observationAnalysis';
@@ -14,7 +17,7 @@ export type ConfirmedTaskStatus = 'completed' | 'partial' | 'assisted' | 'unable
 
 export interface ObservationReport extends ObservationSummary {
   readonly taskId: AngleObservationTaskId;
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly patientCode: string;
   readonly patientRevision: number;
   readonly modelVersion: string;
@@ -22,8 +25,10 @@ export interface ObservationReport extends ObservationSummary {
   readonly analysisVersion: string;
   readonly cameraView: 'side';
   readonly assistance: 'none' | 'manual_or_device';
-  readonly safetyStopReason: SafetyStopReason | null;
-  readonly analysis: AngleAnalysis;
+  // 旧记录只读保留；新报告不写入此字段。
+  readonly legacySafetyStopReason?: SafetyStopReason | null;
+  readonly taskAnalysis: TaskAnalysis;
+  readonly sourceSchemaVersion?: 1;
 }
 
 export function createObservationReport(
@@ -38,25 +43,26 @@ export function createObservationReport(
     session.context.patientId !== patient.id ||
     session.context.affectedSide !== patient.affectedSide ||
     patient.id.startsWith('design-') ||
-    (session.phase !== 'finished' && session.phase !== 'stopped_safety')
+    session.phase !== 'finished'
   )
     throw new Error('当前观察不能保存为动作观察报告');
   const taskId = session.context.taskId;
   const task = rehabTasks.find((item) => item.id === taskId);
   if (!task) throw new Error('观察任务不存在');
   const protocol = getAngleObservationProtocol(taskId);
-  const taskStatus: TaskStatus | null =
-    session.phase === 'stopped_safety' ? 'stopped_safety' : status;
+  const taskStatus: TaskStatus | null = status;
   if (
     !taskStatus ||
+    !['completed', 'partial', 'assisted', 'unable'].includes(taskStatus) ||
     (hasAssistance && taskStatus === 'completed') ||
     (!hasAssistance && taskStatus === 'assisted')
   ) {
     throw new Error('请确认任务状态与实际辅助情况');
   }
-  const analysis = analyzeObservation(recording, patient.affectedSide, taskId);
+  const validatedRecording = parsePoseRecording(recording);
+  const analysis = analyzeObservation(validatedRecording, patient.affectedSide, taskId);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: recording.id,
     patientId: patient.id,
     patientCode: patient.patientCode,
@@ -69,13 +75,18 @@ export function createObservationReport(
     captureQuality: analysis.captureQuality,
     repetitions: analysis.repetitions,
     durationMs: recording.durationMs,
-    modelVersion: recording.modelVersion,
+    modelVersion: recording.metadata.modelVersion,
     protocolVersion: protocol.version,
     analysisVersion: protocol.analysisVersion,
     cameraView: 'side',
     assistance: hasAssistance ? 'manual_or_device' : 'none',
-    safetyStopReason: session.safetyStopReason,
-    analysis,
+    taskAnalysis: createTaskAnalysis(
+      recording.id,
+      recording.durationMs,
+      taskId,
+      taskStatus,
+      analysis,
+    ),
   };
 }
 

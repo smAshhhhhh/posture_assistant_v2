@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
+import { createObservationReport } from './recordingFixtures.mjs';
 
 const { analyzeElbow, getElbowAngle } = await loadTypeScript(
   'src/domain/observations/elbowAnalysis.ts',
 );
-const { parsePoseRecording } = await loadTypeScript('src/domain/observations/poseRecording.ts');
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
+const { parsePoseRecording } = await loadTypeScript(
+  'src/domain/observations/legacyPoseRecording.ts',
 );
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
@@ -138,7 +138,7 @@ test('原生关键点边界拒绝乱序、越界时间、缺少点数与非有�
     assert.throws(() => parsePoseRecording(input));
 });
 
-test('任务状态人工确认且与采集质量独立，安全停止不可改为普通完成', () => {
+test('任务状态人工确认且与采集质量独立，不创建安全停止报告', () => {
   assert.throws(() => createObservationReport(patient, finished, clean, null, false));
   assert.throws(() => createObservationReport(patient, finished, clean, 'completed', true));
   assert.throws(() =>
@@ -147,10 +147,14 @@ test('任务状态人工确认且与采集质量独立，安全停止不可改�
   const invalid = createObservationReport(patient, finished, recording([]), 'completed', false);
   assert.equal(invalid.taskStatus, 'completed');
   assert.equal(invalid.captureQuality, 'invalid_capture');
-  const safety = transitionCaptureSession(started, { type: 'stop_safety', atMs: 5_000 });
-  assert.equal(
-    createObservationReport(patient, safety, clean, 'completed', false).taskStatus,
-    'stopped_safety',
+  assert.throws(() =>
+    createObservationReport(
+      patient,
+      { ...finished, phase: 'stopped_safety' },
+      clean,
+      'completed',
+      false,
+    ),
   );
   const report = createObservationReport(patient, finished, clean, 'completed', false);
   assert.deepEqual(parseObservationReport(report), report);
@@ -163,10 +167,40 @@ test('报告回读拒绝不一致的活动范围、空指标、协议和辅助�
     { ...report, protocolVersion: 'other' },
     { ...report, assistance: 'manual_or_device' },
     { ...report, patientRevision: 1.5 },
-    { ...report, analysis: { ...report.analysis, minAngle: null } },
-    { ...report, analysis: { ...report.analysis, rangeOfMotion: 90 } },
-    { ...report, analysis: { ...report.analysis, validSampleCount: 1 } },
-    { ...report, analysis: { ...report.analysis, repetitions: 0.5 } },
+    {
+      ...report,
+      taskAnalysis: {
+        ...report.taskAnalysis,
+        taskResult: {
+          ...report.taskAnalysis.taskResult,
+          angle: { ...report.taskAnalysis.taskResult.angle, minAngle: null },
+        },
+      },
+    },
+    {
+      ...report,
+      taskAnalysis: {
+        ...report.taskAnalysis,
+        taskResult: {
+          ...report.taskAnalysis.taskResult,
+          angle: { ...report.taskAnalysis.taskResult.angle, rangeOfMotion: 90 },
+        },
+      },
+    },
+    {
+      ...report,
+      taskAnalysis: {
+        ...report.taskAnalysis,
+        qualityAssessment: { ...report.taskAnalysis.qualityAssessment, validSampleCount: 1 },
+      },
+    },
+    {
+      ...report,
+      taskAnalysis: {
+        ...report.taskAnalysis,
+        commonMetrics: { ...report.taskAnalysis.commonMetrics, repetitions: 0.5 },
+      },
+    },
   ])
     assert.throws(() => parseObservationReport(invalid));
 });

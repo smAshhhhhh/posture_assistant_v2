@@ -10,7 +10,8 @@ import {
   summarizeShortWalk,
 } from './shortWalkProtocol';
 import type { ShortWalkSample } from './shortWalkProtocol';
-import type { PoseFrame, PoseRecording } from './poseRecording';
+import { getAnalysisFrames, isSameCaptureSegment } from './analysisRecording';
+import type { AnalysisFrame, AnalyzableRecording } from './analysisRecording';
 
 interface WalkPosition {
   readonly timestampMs: number;
@@ -24,7 +25,7 @@ interface WalkPosition {
   readonly rightAngle: number;
 }
 
-function walkPosition(frame: PoseFrame): WalkPosition | null {
+function walkPosition(frame: AnalysisFrame): WalkPosition | null {
   const leftAngle = getJointAngle(frame, 'left', 'short_walk');
   const rightAngle = getJointAngle(frame, 'right', 'short_walk');
   const leftHip = frame.landmarks[23];
@@ -75,17 +76,26 @@ function sameWalkView(position: WalkPosition, anchor: WalkPosition, previous: Wa
   );
 }
 
-export function analyzeShortWalk(recording: PoseRecording, side: AffectedSide): AngleAnalysis {
+export function analyzeShortWalk(
+  recording: AnalyzableRecording,
+  side: AffectedSide,
+): AngleAnalysis {
+  const frames = getAnalysisFrames(recording);
   let anchor: WalkPosition | null = null;
   let previous: WalkPosition | null = null;
   let segmentIndex = 0;
   let leftFiltered: number | null = null;
   let rightFiltered: number | null = null;
-  const samples = recording.frames.map((frame): ShortWalkSample => {
+  const samples = frames.map((frame, index): ShortWalkSample => {
     const position = walkPosition(frame);
     const gap = previous ? frame.timestampMs - previous.timestampMs : Infinity;
     const badView = position && anchor && previous && !sameWalkView(position, anchor, previous);
-    if (!position || badView || gap > angleAnalysisSettings.maxGapMs) {
+    if (
+      !position ||
+      badView ||
+      !isSameCaptureSegment(frames[index - 1], frame) ||
+      gap > angleAnalysisSettings.maxGapMs
+    ) {
       if (anchor) segmentIndex += 1;
       anchor = null;
       previous = null;
@@ -176,10 +186,14 @@ export function analyzeShortWalk(recording: PoseRecording, side: AffectedSide): 
     maxAngle: invalid ? null : Math.max(...usable),
     rangeOfMotion: invalid ? null : Math.max(...usable) - Math.min(...usable),
     repetitions: side === 'left' ? shortWalk.leftCycles : shortWalk.rightCycles,
-    series: resultSamples.map((sample) => ({
-      timestampMs: sample.timestampMs,
-      angle: shortWalkAngle(sample, side),
-    })),
+    series: resultSamples.map((sample, index) => {
+      const captureSegment = frames[index]?.segmentIndex;
+      return {
+        timestampMs: sample.timestampMs,
+        angle: shortWalkAngle(sample, side),
+        ...(captureSegment === undefined ? {} : { segmentIndex: captureSegment }),
+      };
+    }),
     shortWalk,
   };
 }

@@ -34,7 +34,7 @@ class PoseCameraModule : Module() {
       }
     }
 
-    Function("recordingVersion") { 1 }
+    Function("recordingVersion") { 2 }
     Function("videoRecordingVersion") { 3 }
     Function("modelSelectionVersion") { 1 }
     AsyncFunction("beginRecording") { resume: Boolean, promise: Promise ->

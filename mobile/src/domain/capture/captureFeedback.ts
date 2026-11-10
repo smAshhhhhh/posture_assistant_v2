@@ -32,13 +32,6 @@ export function getCaptureFeedback(
   camera: PoseCameraState,
   isPreviewActive: boolean,
 ): CaptureFeedback {
-  if (session.phase === 'stopped_safety') {
-    return {
-      code: 'stopped_safety',
-      title: '已安全停止',
-      message: '先确认患者安全，必要时休息并寻求专业协助。',
-    };
-  }
   if (session.phase === 'finished' || session.phase === 'discarded') {
     return {
       code: session.phase,

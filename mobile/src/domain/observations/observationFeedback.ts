@@ -1,7 +1,7 @@
 import type { AngleAnalysis } from './angleAnalysis';
 import { getAngleObservationProtocol } from './angleProtocols';
 import type { AngleObservationTaskId } from './angleProtocols';
-import type { TaskStatus } from './types';
+import type { HistoricalTaskStatus } from './types';
 
 interface ObservationFeedback {
   readonly code: string;
@@ -12,7 +12,7 @@ interface ObservationFeedback {
 export function getObservationFeedback(
   taskId: AngleObservationTaskId,
   analysis: AngleAnalysis,
-  taskStatus: TaskStatus | null,
+  taskStatus: HistoricalTaskStatus | null,
 ): readonly ObservationFeedback[] {
   const feedback: ObservationFeedback[] = [];
   if (taskStatus === 'stopped_safety') {

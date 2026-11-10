@@ -3,11 +3,9 @@ import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { sitToStandMotion, sitToStandRecording } from './sitToStandFixtures.mjs';
+import { createObservationReport } from './recordingFixtures.mjs';
 
 const { analyzeSitToStand } = await loadTypeScript('src/domain/observations/sitToStandAnalysis.ts');
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
-);
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
 );
@@ -156,7 +154,7 @@ test('暂停、漏检、双侧关节遮挡和机位移动不跨缺失拼成坐�
   }
 });
 
-test('低质量、短采集和容量截断没有虚假次数或耗时，安全结果独立', () => {
+test('低质量、短采集和容量截断没有虚假次数或耗时，不再创建安全停止结果', () => {
   const original = sitToStandRecording();
   for (const recording of [
     { ...original, isTruncated: true },
@@ -173,19 +171,18 @@ test('低质量、短采集和容量截断没有虚假次数或耗时，安全�
     assert.equal(report.taskStatus, 'completed');
     assert.equal(report.captureQuality, 'invalid_capture');
     assert.equal(report.repetitions, null);
-    assert.equal(report.analysis.sitToStand.meanRiseDurationMs, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.meanRiseDurationMs, null);
     assert.deepEqual(parseObservationReport(report), report);
   }
-  const report = createObservationReport(
-    patient,
-    { ...session, phase: 'stopped_safety', safetyStopReason: 'pain' },
-    original,
-    'completed',
-    false,
+  assert.throws(() =>
+    createObservationReport(
+      patient,
+      { ...session, phase: 'stopped_safety' },
+      original,
+      'completed',
+      false,
+    ),
   );
-  assert.equal(report.taskStatus, 'stopped_safety');
-  assert.equal(report.safetyStopReason, 'pain');
-  assert.deepEqual(parseObservationReport(report), report);
 });
 
 test('坐站回读拒绝错序、缺失证据、虚假次数和平均值，零周期也可对比', () => {
@@ -198,23 +195,25 @@ test('坐站回读拒绝错序、缺失证据、虚假次数和平均值，零�
   );
   for (const change of [
     (entry) => {
-      delete entry.analysis.sitToStand;
+      delete entry.taskAnalysis.taskResult.metrics;
     },
     (entry) => {
-      entry.analysis.sitToStand.cycles[0].standingAtMs = 0;
+      entry.taskAnalysis.taskResult.metrics.cycles[0].standingAtMs = 0;
     },
     (entry) => {
-      entry.analysis.sitToStand.meanRiseDurationMs += 1;
+      entry.taskAnalysis.taskResult.metrics.meanRiseDurationMs += 1;
     },
     (entry) => {
-      entry.analysis.sitToStand.cycles = [];
+      entry.taskAnalysis.taskResult.metrics.cycles = [];
     },
     (entry) => {
-      entry.analysis.series[17].angle = null;
+      entry.taskAnalysis.taskResult.angle.series[17].angle = null;
     },
     (entry) => {
-      entry.analysis.sitToStand.cycles.push({ ...entry.analysis.sitToStand.cycles[0] });
-      entry.analysis.repetitions = 2;
+      entry.taskAnalysis.taskResult.metrics.cycles.push({
+        ...entry.taskAnalysis.taskResult.metrics.cycles[0],
+      });
+      entry.taskAnalysis.commonMetrics.repetitions = 2;
       entry.repetitions = 2;
     },
   ]) {

@@ -1,26 +1,40 @@
+import { readInteger, readNumber, readObject, readString } from './recordValues';
+import { parseRecordingMetadata, parseImageSpace } from './recordingMetadata';
+import type { RecordingMetadata, ImageSpace } from './recordingMetadata';
+
+export { readNumber, readObject, readString } from './recordValues';
+
 export interface PoseLandmark {
   readonly x: number;
   readonly y: number;
+  // MediaPipe 相对深度，不能解释为物理距离。
+  readonly z: number;
   readonly visibility: number;
   readonly presence: number;
 }
 
 export interface PoseFrame {
+  // 片段内的单调时间，区间为 [0, durationMs)。
   readonly timestampMs: number;
-  readonly imageWidth: number;
-  readonly imageHeight: number;
-  readonly isInPreview: boolean;
   readonly landmarks: readonly PoseLandmark[];
 }
 
+export interface PoseSegment extends ImageSpace {
+  readonly segmentIndex: number;
+  readonly startedAtMs: number;
+  readonly durationMs: number;
+  readonly videoSegmentId: string | null;
+  readonly videoOffsetMs: number;
+  readonly frames: readonly PoseFrame[];
+}
+
 export interface PoseRecording {
-  readonly schemaVersion: 1;
   readonly id: string;
   readonly observedAt: string;
-  readonly modelVersion: string;
+  readonly metadata: RecordingMetadata;
   readonly durationMs: number;
   readonly isTruncated: boolean;
-  readonly frames: readonly PoseFrame[];
+  readonly segments: readonly PoseSegment[];
   readonly video?: CaptureVideo;
 }
 
@@ -37,91 +51,130 @@ function parseCaptureVideo(value: unknown, id: string): CaptureVideo {
   if (video.error !== null && video.error !== 'recording_failed') {
     throw new Error('录像状态不正确');
   }
-  const segments = video.segments.map((item: unknown, index: number) => {
-    const segment = readObject(item);
-    const fileName = readString(segment.fileName);
-    if (fileName !== `${id}-${index}.mp4`) throw new Error('录像片段路径不正确');
-    return { fileName, durationMs: readNumber(segment.durationMs, 1, 86_400_000) };
-  });
-  return { segments, error: video.error };
+  return {
+    error: video.error,
+    segments: video.segments.map((value: unknown, index: number) => {
+      const segment = readObject(value);
+      const fileName = readString(segment.fileName);
+      if (fileName !== `${id}-${index}.mp4`) throw new Error('录像片段路径不正确');
+      return { fileName, durationMs: readInteger(segment.durationMs, 1, 86_400_000) };
+    }),
+  };
 }
 
-export function readObject(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('观察数据格式不正确');
+function parseFrame(value: unknown, durationMs: number): PoseFrame {
+  const frame = readObject(value);
+  const timestampMs = readInteger(frame.timestampMs, 0, durationMs);
+  if (
+    timestampMs >= durationMs ||
+    !Array.isArray(frame.landmarks) ||
+    (frame.landmarks.length !== 0 && frame.landmarks.length !== 33) ||
+    Object.keys(frame).some((key) => key !== 'timestampMs' && key !== 'landmarks')
+  ) {
+    throw new Error('原始关键点帧不正确');
   }
-  return Object.fromEntries(Object.entries(value));
-}
-
-export function readNumber(value: unknown, minimum = 0, maximum = Number.MAX_SAFE_INTEGER): number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > maximum) {
-    throw new Error('观察数值不正确');
-  }
-  return value;
-}
-
-export function readString(value: unknown): string {
-  if (typeof value !== 'string' || value.length === 0) throw new Error('观察字段不正确');
-  return value;
+  return {
+    timestampMs,
+    landmarks: frame.landmarks.map((value: unknown) => {
+      const point = readObject(value);
+      if (
+        Object.keys(point).some((key) => !['x', 'y', 'z', 'visibility', 'presence'].includes(key))
+      ) {
+        throw new Error('原始关键点包含非采集字段');
+      }
+      return {
+        x: readNumber(point.x, -10, 10),
+        y: readNumber(point.y, -10, 10),
+        z: readNumber(point.z, -10, 10),
+        visibility: readNumber(point.visibility, 0, 1),
+        presence: readNumber(point.presence, 0, 1),
+      };
+    }),
+  };
 }
 
 export function parsePoseRecording(value: unknown): PoseRecording {
   const record = readObject(value);
-  const durationMs = readNumber(record.durationMs, 0, 86_400_000);
   const id = readString(record.id);
   const observedAt = readString(record.observedAt);
+  const durationMs = readInteger(record.durationMs, 0, 86_400_000);
+  const metadata = parseRecordingMetadata(record.metadata);
   if (
-    record.schemaVersion !== 1 ||
     !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id) ||
     !Number.isFinite(Date.parse(observedAt)) ||
     typeof record.isTruncated !== 'boolean' ||
-    !Array.isArray(record.frames) ||
-    record.frames.length > 9_000
+    !Array.isArray(record.segments) ||
+    record.segments.length > 9_000
   ) {
     throw new Error('关键点记录不兼容');
   }
-  let previousMs = -1;
-  const frames = record.frames.map((item: unknown): PoseFrame => {
-    const frame = readObject(item);
-    const timestampMs = readNumber(frame.timestampMs, 0, durationMs);
+  let previousEnd = 0;
+  let totalDuration = 0;
+  let totalFrames = 0;
+  const segments = record.segments.map((value: unknown, index: number): PoseSegment => {
+    const segment = readObject(value);
+    const startedAtMs = readInteger(segment.startedAtMs, previousEnd, 86_400_000);
+    const segmentDuration = readInteger(segment.durationMs, 0, 86_400_000 - startedAtMs);
+    if (segment.segmentIndex !== index || !Array.isArray(segment.frames)) {
+      throw new Error('采集片段不正确');
+    }
+    const imageSpace = parseImageSpace(segment);
     if (
-      timestampMs <= previousMs ||
-      typeof frame.isInPreview !== 'boolean' ||
-      !Array.isArray(frame.landmarks) ||
-      (frame.landmarks.length !== 0 && frame.landmarks.length !== 33)
+      metadata.imageDimensions &&
+      imageSpace.imageDimensions &&
+      (JSON.stringify(metadata.imageDimensions) !== JSON.stringify(imageSpace.imageDimensions) ||
+        JSON.stringify(metadata.preprocessing) !== JSON.stringify(imageSpace.preprocessing))
     ) {
-      throw new Error('关键点时序不正确');
+      throw new Error('公共图像元信息与片段不一致');
     }
-    previousMs = timestampMs;
-    const imageWidth = readNumber(frame.imageWidth, 1, 16_384);
-    const imageHeight = readNumber(frame.imageHeight, 1, 16_384);
-    if (!Number.isInteger(imageWidth) || !Number.isInteger(imageHeight)) {
-      throw new Error('关键点图像尺寸不正确');
+    if (segment.frames.length > 0 && !imageSpace.imageDimensions) {
+      throw new Error('关键点缺少模型输入尺寸');
     }
+    let previousTimestamp = -1;
+    const frames = segment.frames.map((value: unknown) => {
+      const frame = parseFrame(value, segmentDuration);
+      if (frame.timestampMs <= previousTimestamp) throw new Error('片段内时间戳未递增');
+      previousTimestamp = frame.timestampMs;
+      return frame;
+    });
+    const videoSegmentId = segment.videoSegmentId;
+    if (
+      videoSegmentId !== null &&
+      (typeof videoSegmentId !== 'string' ||
+        !new RegExp(`^${id}-[0-9]+\\.mp4$`).test(videoSegmentId))
+    ) {
+      throw new Error('关键点与视频关联不正确');
+    }
+    previousEnd = startedAtMs + segmentDuration;
+    totalDuration += segmentDuration;
+    totalFrames += frames.length;
     return {
-      timestampMs,
-      imageWidth,
-      imageHeight,
-      isInPreview: frame.isInPreview,
-      landmarks: frame.landmarks.map((entry: unknown): PoseLandmark => {
-        const point = readObject(entry);
-        return {
-          x: readNumber(point.x, -10, 10),
-          y: readNumber(point.y, -10, 10),
-          visibility: readNumber(point.visibility, 0, 1),
-          presence: readNumber(point.presence, 0, 1),
-        };
-      }),
+      ...imageSpace,
+      segmentIndex: index,
+      startedAtMs,
+      durationMs: segmentDuration,
+      videoSegmentId,
+      videoOffsetMs: readInteger(segment.videoOffsetMs, 0, 86_400_000),
+      frames,
     };
   });
+  if (totalFrames > 9_000 || totalDuration !== durationMs) {
+    throw new Error('采集时长或容量不一致');
+  }
+  const video = record.video === undefined ? undefined : parseCaptureVideo(record.video, id);
+  for (const segment of segments) {
+    if (segment.videoSegmentId === null) continue;
+    if (!video) throw new Error('采集片段缺少录像信息');
+    const linked = video.segments.find((item) => item.fileName === segment.videoSegmentId);
+    if (!linked && video.error === null) throw new Error('采集片段缺少对应录像');
+  }
   return {
-    schemaVersion: 1,
     id,
     observedAt,
-    modelVersion: readString(record.modelVersion),
+    metadata,
     durationMs,
     isTruncated: record.isTruncated,
-    frames,
-    ...(record.video === undefined ? {} : { video: parseCaptureVideo(record.video, id) }),
+    segments,
+    ...(video ? { video } : {}),
   };
 }

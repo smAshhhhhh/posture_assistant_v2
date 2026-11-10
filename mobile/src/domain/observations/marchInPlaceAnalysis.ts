@@ -12,7 +12,8 @@ import {
 import type { MarchPosition } from './marchInPlaceGeometry';
 import { marchInPlaceSettings as settings, summarizeMarchInPlace } from './marchInPlaceProtocol';
 import type { MarchSide, MarchStep } from './marchInPlaceProtocol';
-import type { PoseRecording } from './poseRecording';
+import { getAnalysisFrames, isSameCaptureSegment } from './analysisRecording';
+import type { AnalyzableRecording } from './analysisRecording';
 
 interface ActiveStep {
   readonly side: MarchSide;
@@ -21,7 +22,11 @@ interface ActiveStep {
   readonly liftRatio: number;
 }
 
-export function analyzeMarchInPlace(recording: PoseRecording, side: AffectedSide): AngleAnalysis {
+export function analyzeMarchInPlace(
+  recording: AnalyzableRecording,
+  side: AffectedSide,
+): AngleAnalysis {
+  const frames = getAnalysisFrames(recording);
   const base = analyzeJoint(recording, side, 'march_in_place');
   const steps: MarchStep[] = [];
   let baseline: MarchPosition | null = null;
@@ -37,9 +42,13 @@ export function analyzeMarchInPlace(recording: PoseRecording, side: AffectedSide
     active = null;
   }
   const series = base.series.map((sample, index) => {
-    const frame = recording.frames[index];
+    const frame = frames[index];
     const position = frame && sample.angle !== null ? marchPosition(frame) : null;
-    if (sample.timestampMs - previousMs > angleAnalysisSettings.maxGapMs) reset();
+    if (
+      !isSameCaptureSegment(frames[index - 1], frame) ||
+      sample.timestampMs - previousMs > angleAnalysisSettings.maxGapMs
+    )
+      reset();
     previousMs = sample.timestampMs;
     if (!position || (baseline && !isSameMarchView(position, baseline))) {
       reset();
@@ -107,7 +116,12 @@ export function analyzeMarchInPlace(recording: PoseRecording, side: AffectedSide
     if (!sample || sample.angle === null) continue;
     const previous = series[index - 1];
     const gapMs = previous ? sample.timestampMs - previous.timestampMs : Infinity;
-    if (previous && previous.angle !== null && gapMs <= angleAnalysisSettings.maxGapMs) {
+    if (
+      previous &&
+      previous.angle !== null &&
+      previous.segmentIndex === sample.segmentIndex &&
+      gapMs <= angleAnalysisSettings.maxGapMs
+    ) {
       coveredMs += gapMs;
     } else {
       longestGapMs = Math.max(longestGapMs, sample.timestampMs - gapStartMs);

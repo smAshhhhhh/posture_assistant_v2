@@ -3,12 +3,10 @@ import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { marchMotion, marchRecording } from './marchInPlaceFixtures.mjs';
+import { createObservationReport } from './recordingFixtures.mjs';
 
 const { analyzeMarchInPlace } = await loadTypeScript(
   'src/domain/observations/marchInPlaceAnalysis.ts',
-);
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
 );
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
@@ -40,7 +38,7 @@ test('原地踏步左右患侧和非方形画幅均记录完整四步、耗时�
         'partial',
         false,
       );
-      const metrics = report.analysis.marchInPlace;
+      const metrics = report.taskAnalysis.taskResult.metrics;
       assert.equal(report.captureQuality, 'valid');
       assert.equal(report.repetitions, 4);
       assert.equal(metrics.leftSteps, 2);
@@ -77,8 +75,8 @@ test('静止、小摆动和只抬不落保持零步；半途开始必须先回�
   ]) {
     const report = reportFor(marchRecording(motion));
     assert.equal(report.repetitions, 0);
-    assert.equal(report.analysis.marchInPlace.meanStepDurationMs, null);
-    assert.equal(report.analysis.marchInPlace.cadencePerMinute, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.meanStepDurationMs, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.cadencePerMinute, null);
     assert.deepEqual(parseObservationReport(report), report);
   }
 });
@@ -160,15 +158,15 @@ test('中断后重新站稳再踏步，不跨段计算同侧连续', () => {
   recording.frames[24].landmarks = [];
   const report = reportFor(recording);
   assert.equal(report.repetitions, 2);
-  assert.equal(report.analysis.marchInPlace.alternationErrors, 0);
+  assert.equal(report.taskAnalysis.taskResult.metrics.alternationErrors, 0);
   assert.notEqual(
-    report.analysis.marchInPlace.steps[0].segmentIndex,
-    report.analysis.marchInPlace.steps[1].segmentIndex,
+    report.taskAnalysis.taskResult.metrics.steps[0].segmentIndex,
+    report.taskAnalysis.taskResult.metrics.steps[1].segmentIndex,
   );
   assert.deepEqual(parseObservationReport(report), report);
 });
 
-test('短采集、截断和缺失数据保持 null；人工完成、辅助和安全状态独立', () => {
+test('短采集、截断和缺失数据保持 null；人工完成与辅助状态独立', () => {
   const original = marchRecording();
   for (const recording of [
     { ...original, isTruncated: true },
@@ -183,74 +181,73 @@ test('短采集、截断和缺失数据保持 null；人工完成、辅助和安
     assert.equal(report.taskStatus, 'completed');
     assert.equal(report.captureQuality, 'invalid_capture');
     assert.equal(report.repetitions, null);
-    assert.equal(report.analysis.marchInPlace.leftSteps, null);
-    assert.equal(report.analysis.marchInPlace.rightSteps, null);
-    assert.equal(report.analysis.marchInPlace.alternationErrors, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.leftSteps, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.rightSteps, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.alternationErrors, null);
     assert.deepEqual(parseObservationReport(report), report);
   }
   const assisted = createObservationReport(patient, session, original, 'assisted', true);
   assert.equal(assisted.taskStatus, 'assisted');
   assert.equal(assisted.repetitions, 4);
   assert.deepEqual(parseObservationReport(assisted), assisted);
-  const safe = createObservationReport(
-    patient,
-    { ...session, phase: 'stopped_safety', safetyStopReason: 'pain' },
-    original,
-    'completed',
-    false,
+  assert.throws(() =>
+    createObservationReport(
+      patient,
+      { ...session, phase: 'stopped_safety' },
+      original,
+      'completed',
+      false,
+    ),
   );
-  assert.equal(safe.taskStatus, 'stopped_safety');
-  assert.deepEqual(parseObservationReport(safe), safe);
-  assert.ok(getObservationChanges(safe, assisted).issues.length > 0);
 });
 
 test('回读拒绝缺失指标、错序、重叠、虚假统计、侧别和时间证据', () => {
   const report = reportFor();
   for (const change of [
     (entry) => {
-      delete entry.analysis.marchInPlace;
+      delete entry.taskAnalysis.taskResult.metrics;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps = [];
+      entry.taskAnalysis.taskResult.metrics.steps = [];
     },
     (entry) => {
-      entry.analysis.marchInPlace.leftSteps++;
+      entry.taskAnalysis.taskResult.metrics.leftSteps++;
     },
     (entry) => {
-      entry.analysis.marchInPlace.meanStepDurationMs++;
+      entry.taskAnalysis.taskResult.metrics.meanStepDurationMs++;
     },
     (entry) => {
-      entry.analysis.marchInPlace.cadencePerMinute++;
+      entry.taskAnalysis.taskResult.metrics.cadencePerMinute++;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].side = 'both';
+      entry.taskAnalysis.taskResult.metrics.steps[0].side = 'both';
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].segmentIndex = -1;
+      entry.taskAnalysis.taskResult.metrics.steps[0].segmentIndex = -1;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[1].segmentIndex++;
+      entry.taskAnalysis.taskResult.metrics.steps[1].segmentIndex++;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].liftRatio = 0.01;
+      entry.taskAnalysis.taskResult.metrics.steps[0].liftRatio = 0.01;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].peakAtMs = 0;
+      entry.taskAnalysis.taskResult.metrics.steps[0].peakAtMs = 0;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[1].startedAtMs = 1000;
+      entry.taskAnalysis.taskResult.metrics.steps[1].startedAtMs = 1000;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].startedAtMs++;
+      entry.taskAnalysis.taskResult.metrics.steps[0].startedAtMs++;
     },
     (entry) => {
-      entry.analysis.marchInPlace.steps[0].endedAtMs = entry.durationMs;
+      entry.taskAnalysis.taskResult.metrics.steps[0].endedAtMs = entry.durationMs;
     },
     (entry) => {
-      entry.analysis.series[11].angle = null;
+      entry.taskAnalysis.taskResult.angle.series[11].angle = null;
     },
     (entry) => {
-      entry.analysis.sitToStand = {};
+      entry.taskAnalysis.taskResult.metrics = {};
     },
   ]) {
     const changed = structuredClone(report);
@@ -258,7 +255,7 @@ test('回读拒绝缺失指标、错序、重叠、虚假统计、侧别和时�
     assert.throws(() => parseObservationReport(changed));
   }
   const invalid = reportFor({ ...marchRecording(), frames: [] });
-  invalid.analysis.marchInPlace.leftSteps = 0;
+  invalid.taskAnalysis.taskResult.metrics.leftSteps = 0;
   assert.throws(() => parseObservationReport(invalid));
 });
 

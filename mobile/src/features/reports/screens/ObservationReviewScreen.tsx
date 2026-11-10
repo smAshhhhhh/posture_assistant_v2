@@ -1,9 +1,9 @@
+import { getAngleAnalysis } from '@/domain/observations/taskAnalysis';
 import { usePreventRemove } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CaptureSession } from '@/domain/capture/captureSession';
-import { safetyStopReasonLabels } from '@/domain/capture/captureSession';
-import { analyzeObservation } from '@/domain/observations/observationAnalysis';
+import { analyzeTask } from '@/domain/observations/observationAnalysis';
 import { isAngleObservationTask } from '@/domain/observations/angleProtocols';
 import {
   createObservationReport,
@@ -67,12 +67,9 @@ export function ObservationReviewScreen({
   const canSave = isAngleObservationTask(taskId) && repository.supportsTask(taskId);
   const analysis = useMemo(
     () =>
-      isAngleObservationTask(taskId)
-        ? analyzeObservation(recording, patient.affectedSide, taskId)
-        : null,
+      isAngleObservationTask(taskId) ? analyzeTask(recording, patient.affectedSide, taskId) : null,
     [recording, patient.affectedSide, taskId],
   );
-  const isSafetyStop = session.phase === 'stopped_safety';
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -119,7 +116,7 @@ export function ObservationReviewScreen({
   }, [canDiscard, onDiscard]);
   const save = async () => {
     if (saving.current || savedId || isDiscarding) return;
-    if (!status && !isSafetyStop) {
+    if (!status) {
       setStatusError('请先确认任务完成情况。');
       return;
     }
@@ -160,9 +157,9 @@ export function ObservationReviewScreen({
       </AppText>
       <ObservationReportContent
         taskId={taskId}
-        analysis={analysis}
+        analysis={getAngleAnalysis(analysis)}
         durationMs={recording.durationMs}
-        taskStatus={isSafetyStop ? 'stopped_safety' : status}
+        taskStatus={status}
         hasAssistance={hasAssistance}
       />
       {recording.video ? (
@@ -181,33 +178,26 @@ export function ObservationReviewScreen({
       <AppText variant="caption" className="text-muted">
         未保存数据仅保留在本次会话，关闭应用会丢失。
       </AppText>
-      {!isSafetyStop ? (
-        <AppRadioGroup
-          label="根据现场观察确认任务状态"
-          description="识别失败只影响采集质量，不代表患者无法完成。"
-          isRequired
-          value={status}
-          isDisabled={isSaving || isDiscarding}
-          error={statusError ?? undefined}
-          onChange={(next) => {
-            setStatus(next);
-            setStatusError(null);
-          }}
-          options={[
-            {
-              value: hasAssistance ? 'assisted' : 'completed',
-              label: hasAssistance ? '辅助下完成' : '已完成',
-            },
-            { value: 'partial', label: '部分完成' },
-            { value: 'unable', label: '无法完成' },
-          ]}
-        />
-      ) : (
-        <AppText>
-          安全停止原因：
-          {session.safetyStopReason ? safetyStopReasonLabels[session.safetyStopReason] : '尚未补充'}
-        </AppText>
-      )}
+      <AppRadioGroup
+        label="根据现场观察确认任务状态"
+        description="识别失败只影响采集质量，不代表患者无法完成。"
+        isRequired
+        value={status}
+        isDisabled={isSaving || isDiscarding}
+        error={statusError ?? undefined}
+        onChange={(next) => {
+          setStatus(next);
+          setStatusError(null);
+        }}
+        options={[
+          {
+            value: hasAssistance ? 'assisted' : 'completed',
+            label: hasAssistance ? '辅助下完成' : '已完成',
+          },
+          { value: 'partial', label: '部分完成' },
+          { value: 'unable', label: '无法完成' },
+        ]}
+      />
       {!canSave ? (
         <AppNotice status="warning">请重新构建安装包，加载此任务的报告存储能力。</AppNotice>
       ) : null}

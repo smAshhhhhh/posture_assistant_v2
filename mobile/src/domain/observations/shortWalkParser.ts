@@ -31,6 +31,8 @@ export function parseShortWalkMetrics(value: unknown, analysis: AngleAnalysis, s
       previousSample &&
       !missing &&
       previousSample.leftKneeAngle !== null &&
+      (analysis.series[index - 1]?.segmentIndex === undefined ||
+        analysis.series[index - 1]?.segmentIndex === timeline?.segmentIndex) &&
       timestampMs - previousSample.timestampMs <= angleAnalysisSettings.maxGapMs;
     if (
       !Number.isInteger(segmentIndex) ||

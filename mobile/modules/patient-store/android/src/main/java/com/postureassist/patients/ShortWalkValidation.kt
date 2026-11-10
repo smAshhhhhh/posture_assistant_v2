@@ -32,6 +32,7 @@ internal fun validateShortWalk(analysis: JSONObject, affectedSide: String) {
   val series = analysis.getJSONArray("series")
   requireRecord(rawSamples.length() == series.length())
   var previous: WalkSample? = null
+  var previousCaptureSegment: Int? = null
   val samples = mutableListOf<WalkSample>()
   for (index in 0 until rawSamples.length()) {
     val raw = rawSamples.getJSONObject(index)
@@ -51,10 +52,13 @@ internal fun validateShortWalk(analysis: JSONObject, affectedSide: String) {
     requireRecord(!invalid || missing)
     previous?.let { before ->
       requireRecord(sample.segment >= before.segment)
-      val continuous = !missing && before.left != null && sample.time - before.time <= 250
+      val continuous = !missing && before.left != null && sample.time - before.time <= 250 &&
+        (previousCaptureSegment == null ||
+         previousCaptureSegment == timeline.optionalInteger("segmentIndex"))
       requireRecord(!continuous || sample.segment == before.segment)
       requireRecord(before.left == null || missing || continuous || sample.segment > before.segment)
     }
+    previousCaptureSegment = timeline.optionalInteger("segmentIndex")
     previous = sample
     samples.add(sample)
   }

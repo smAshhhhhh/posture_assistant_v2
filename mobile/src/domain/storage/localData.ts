@@ -67,7 +67,7 @@ export interface LocalDataRepository {
 export function getLocalDataError(error: unknown): string {
   const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : null;
   if (code === 'STORE_UNAVAILABLE') return '请重新构建安装包，加载本地数据管理功能。';
-  if (code === 'CONFLICT') return '资料已发生变化，请重新核对删除范围。';
+  if (code === 'CONFLICT') return '资料已发生变化，请刷新后重新操作。';
   if (code === 'NOT_FOUND') return '所选资料已不存在，请返回刷新。';
   if (code === 'DATA_CORRUPT') return '记录文件缺失或校验失败，导出未完成。';
   if (code === 'BUSY') return '正在处理另一项文件操作，请稍后重试。';

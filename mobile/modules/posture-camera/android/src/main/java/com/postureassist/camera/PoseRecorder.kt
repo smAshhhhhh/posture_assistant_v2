@@ -11,14 +11,21 @@ import java.util.UUID
 
 class PoseRecorder {
   private var record: JSONObject? = null
-  private var frames = JSONArray()
+  private var segments = JSONArray()
+  private var segment: JSONObject? = null
+  private var recordingSinceMs: Long? = null
   private var activeSinceMs: Long? = null
+  private var segmentSinceMs = 0L
   private var elapsedMs = 0L
   private var lastSampleMs = -100L
+  private var frameCount = 0
   private var isTruncated = false
   private var videoSegments = JSONArray()
   private var videoFailed = false
   private var hasVideoStarted = false
+  private var hasImageSpace = false
+  private var hasMixedImageSpace = false
+
   @Synchronized fun recordingId(): String? = record?.getString("id")
 
   @Synchronized fun videoFileName(): String {
@@ -35,85 +42,125 @@ class PoseRecorder {
   @Synchronized fun begin(resume: Boolean, modelVersion: String) {
     check(activeSinceMs == null) { "采集已开始" }
     if (!resume) {
-      frames = JSONArray()
+      segments = JSONArray()
+      segment = null
+      recordingSinceMs = null
       elapsedMs = 0L
-      lastSampleMs = -100L
+      frameCount = 0
       isTruncated = false
       videoSegments = JSONArray()
       videoFailed = false
+      hasImageSpace = false
+      hasMixedImageSpace = false
       record = JSONObject().apply {
-        put("schemaVersion", 1)
         put("id", UUID.randomUUID().toString())
-        put("observedAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-          timeZone = TimeZone.getTimeZone("UTC")
-        }.format(Date()))
-        put("modelVersion", modelVersion)
+        put("observedAt", timestamp())
+        put("metadata", recordingMetadata(modelVersion))
       }
     }
-    check(record != null) { "缺少采集会话" }
-    check(record?.getString("modelVersion") == modelVersion) { "同一观察不能混用模型" }
+    val current = checkNotNull(record) { "缺少采集会话" }
+    check(current.getJSONObject("metadata").getString("modelVersion") == modelVersion) {
+      "同一观察不能混用模型"
+    }
     hasVideoStarted = false
     activeSinceMs = SystemClock.uptimeMillis()
   }
 
   @Synchronized fun startVideoClock(): Boolean {
     if (activeSinceMs == null) return false
-    // 等编码器真正启动再对齐关键点起点，避免把准备编码的时间当作观察。
-    activeSinceMs = SystemClock.uptimeMillis()
+    val now = SystemClock.uptimeMillis()
+    activeSinceMs = now
+    if (recordingSinceMs == null) {
+      recordingSinceMs = now
+      record?.put("observedAt", timestamp())
+    }
     hasVideoStarted = true
+    openSegment(now)
     return true
   }
 
-  @Synchronized fun pause() {
-    val started = activeSinceMs ?: return
-    if (hasVideoStarted) elapsedMs += SystemClock.uptimeMillis() - started
-    activeSinceMs = null
-    hasVideoStarted = false
-    // 暂停前后不跨区间连接角度曲线或动作周期。
-    lastSampleMs = elapsedMs
-    if (record != null) {
-      val last = frames.optJSONObject(frames.length() - 1)?.optLong("timestampMs") ?: -1L
-      val boundary = JSONObject().apply {
-        put("timestampMs", elapsedMs)
-        put("imageWidth", 1)
-        put("imageHeight", 1)
-        put("isInPreview", false)
-        put("landmarks", JSONArray())
-      }
-      if (elapsedMs == last) frames.put(frames.length() - 1, boundary)
-      else if (frames.length() < 9000) frames.put(boundary)
-      else isTruncated = true
-    }
-  }
-
-  @Synchronized fun append(result: PoseOutput, isInPreview: Boolean, sampledAtMs: Long) {
-    val started = activeSinceMs ?: return
-    if (!hasVideoStarted) return
-    // 使用分析开始时的单调时钟，丢弃开始或恢复之前仍在途的帧。
-    if (sampledAtMs < started) return
-    val timestamp = elapsedMs + sampledAtMs - started
-    if (timestamp - lastSampleMs < 100L) return
-    lastSampleMs = timestamp
-    if (frames.length() >= 9000) {
+  private fun openSegment(atMs: Long) {
+    if (segments.length() >= 9000) {
       isTruncated = true
       return
+    }
+    segmentSinceMs = atMs
+    lastSampleMs = atMs - 100L
+    segment = JSONObject().apply {
+      put("segmentIndex", segments.length())
+      put("startedAtMs", atMs - checkNotNull(recordingSinceMs))
+      put("durationMs", 0)
+      put("videoSegmentId", videoFileName())
+      put("videoOffsetMs", atMs - checkNotNull(activeSinceMs))
+      put("imageDimensions", JSONObject.NULL)
+      put("preprocessing", JSONObject.NULL)
+      put("frames", JSONArray())
+    }.also { segments.put(it) }
+  }
+
+  private fun closeSegment(atMs: Long) {
+    val current = segment ?: return
+    val frames = current.getJSONArray("frames")
+    val lastFrameMs = frames.optJSONObject(frames.length() - 1)?.getLong("timestampMs") ?: -1L
+    // 帧时间使用半开区间，保证相邻片段的分析时间严格递增。
+    val duration = maxOf(atMs - segmentSinceMs, lastFrameMs + 1)
+    current.put("durationMs", duration)
+    elapsedMs += duration
+    segment = null
+  }
+
+  @Synchronized fun pause() {
+    if (activeSinceMs == null) return
+    if (hasVideoStarted) closeSegment(SystemClock.uptimeMillis())
+    activeSinceMs = null
+    hasVideoStarted = false
+  }
+
+  @Synchronized fun append(result: PoseOutput, sampledAtMs: Long) {
+    val started = activeSinceMs ?: return
+    if (!hasVideoStarted || sampledAtMs < started || sampledAtMs - lastSampleMs < 100L) return
+    if (frameCount >= 9000) {
+      isTruncated = true
+      return
+    }
+    var current = segment ?: return
+    val dimensions = result.imageDimensions()
+    val preprocessing = result.preprocessing()
+    val changed = !current.isNull("preprocessing") &&
+      (current.getJSONObject("preprocessing").toString() != preprocessing.toString() ||
+       current.getJSONObject("imageDimensions").toString() != dimensions.toString())
+    if (changed) {
+      closeSegment(sampledAtMs)
+      openSegment(sampledAtMs)
+      current = segment ?: return
+    }
+    current.put("imageDimensions", dimensions)
+    current.put("preprocessing", preprocessing)
+    val metadata = checkNotNull(record).getJSONObject("metadata")
+    if (!hasImageSpace) {
+      metadata.put("imageDimensions", dimensions).put("preprocessing", preprocessing)
+      hasImageSpace = true
+    } else if (!hasMixedImageSpace &&
+      (metadata.getJSONObject("preprocessing").toString() != preprocessing.toString() ||
+       metadata.getJSONObject("imageDimensions").toString() != dimensions.toString())) {
+      // 公共图像空间变化后仅使用各片段的准确值。
+      hasMixedImageSpace = true
+      metadata.put("imageDimensions", JSONObject.NULL).put("preprocessing", JSONObject.NULL)
     }
     val points = JSONArray()
     result.landmarks.forEach { point ->
       points.put(JSONObject().apply {
         put("x", point.x().toDouble())
         put("y", point.y().toDouble())
+        put("z", point.z().toDouble())
         put("visibility", point.visibility().orElse(0f).toDouble())
         put("presence", point.presence().orElse(0f).toDouble())
       })
     }
-    frames.put(JSONObject().apply {
-      put("timestampMs", timestamp)
-      put("imageWidth", result.imageWidth)
-      put("imageHeight", result.imageHeight)
-      put("isInPreview", isInPreview)
-      put("landmarks", points)
-    })
+    current.getJSONArray("frames").put(JSONObject()
+      .put("timestampMs", sampledAtMs - segmentSinceMs).put("landmarks", points))
+    lastSampleMs = sampledAtMs
+    frameCount += 1
   }
 
   @Synchronized fun finish(): String {
@@ -121,17 +168,21 @@ class PoseRecorder {
     return checkNotNull(record) { "缺少采集会话" }.apply {
       put("durationMs", elapsedMs)
       put("isTruncated", isTruncated)
-      put("frames", frames)
-      put("video", JSONObject().apply {
-        put("segments", videoSegments)
-        put("error", if (videoFailed) "recording_failed" else JSONObject.NULL)
-      })
+      put("segments", segments)
+      put("video", JSONObject().put("segments", videoSegments)
+        .put("error", if (videoFailed) "recording_failed" else JSONObject.NULL))
     }.toString()
   }
 
   @Synchronized fun clear() {
     check(activeSinceMs == null) { "采集尚未停止" }
     record = null
-    frames = JSONArray()
+    segments = JSONArray()
+    segment = null
   }
+
+  private fun timestamp(): String =
+    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+      timeZone = TimeZone.getTimeZone("UTC")
+    }.format(Date())
 }

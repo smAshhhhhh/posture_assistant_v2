@@ -5,9 +5,7 @@ import { test } from 'node:test';
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { walkMotion, walkRecording } from './shortWalkFixtures.mjs';
 
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
-);
+import { createObservationReport } from './recordingFixtures.mjs';
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
 );
@@ -39,7 +37,7 @@ test('步行双侧各三个完整周期；左右患侧、左右行进和横竖�
         [1080, 1920],
       ]) {
         const report = reportFor(walkRecording(undefined, { speed, width, height }), side);
-        const metrics = report.analysis.shortWalk;
+        const metrics = report.taskAnalysis.taskResult.metrics;
         assert.equal(report.captureQuality, 'valid');
         assert.equal(report.repetitions, 3);
         assert.equal(metrics.leftCycles, 3);
@@ -71,10 +69,10 @@ test('站立、原地踏步、同步双腿运动、单次摆动和小幅屈膝�
     ),
   ]) {
     const report = reportFor(recording);
-    assert.equal(report.analysis.shortWalk.leftCycles, 0);
-    assert.equal(report.analysis.shortWalk.rightCycles, 0);
-    assert.equal(report.analysis.shortWalk.meanLeftCycleDurationMs, null);
-    assert.equal(report.analysis.shortWalk.cycleDurationDifferenceMs, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.leftCycles, 0);
+    assert.equal(report.taskAnalysis.taskResult.metrics.rightCycles, 0);
+    assert.equal(report.taskAnalysis.taskResult.metrics.meanLeftCycleDurationMs, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.cycleDurationDifferenceMs, null);
     assert.deepEqual(parseObservationReport(report), report);
   }
 });
@@ -84,11 +82,11 @@ test('双侧范围差保留方向，只有单侧周期时另侧耗时和耗时�
     walkMotion().map(({ left, right }) => ({ left, right: Math.max(145, right) })),
   );
   const report = reportFor(recording);
-  assert.equal(report.analysis.shortWalk.leftCycles, 3);
-  assert.equal(report.analysis.shortWalk.rightCycles, 0);
-  assert.equal(report.analysis.shortWalk.meanRightCycleDurationMs, null);
-  assert.equal(report.analysis.shortWalk.cycleDurationDifferenceMs, null);
-  assert.ok(report.analysis.shortWalk.kneeRangeDifference > 20);
+  assert.equal(report.taskAnalysis.taskResult.metrics.leftCycles, 3);
+  assert.equal(report.taskAnalysis.taskResult.metrics.rightCycles, 0);
+  assert.equal(report.taskAnalysis.taskResult.metrics.meanRightCycleDurationMs, null);
+  assert.equal(report.taskAnalysis.taskResult.metrics.cycleDurationDifferenceMs, null);
+  assert.ok(report.taskAnalysis.taskResult.metrics.kneeRangeDifference > 20);
   assert.deepEqual(parseObservationReport(report), report);
 });
 
@@ -140,7 +138,7 @@ test('暂停、漏检、长间隔、遮挡、画幅变化与相机突移不跨�
   for (const recording of variants) {
     const report = reportFor(recording);
     assert.equal(report.repetitions, 0);
-    assert.equal(report.analysis.shortWalk.rightCycles, 0);
+    assert.equal(report.taskAnalysis.taskResult.metrics.rightCycles, 0);
     assert.deepEqual(parseObservationReport(report), report);
   }
 });
@@ -180,7 +178,7 @@ test('不等间隔采样、停顿后恢复和左右耗时差按真实时间计�
   recovered.frames[22].landmarks = [];
   const recoveredReport = reportFor(recovered);
   assert.equal(recoveredReport.repetitions, 1);
-  const leftCycle = recoveredReport.analysis.shortWalk.cycles.find(
+  const leftCycle = recoveredReport.taskAnalysis.taskResult.metrics.cycles.find(
     (cycle) => cycle.side === 'left',
   );
   assert.ok(leftCycle.startedAtMs > 2200);
@@ -192,7 +190,7 @@ test('不等间隔采样、停顿后恢复和左右耗时差按真实时间计�
     ...motion.slice(62),
   ]);
   const unequalReport = reportFor(unequal);
-  const metrics = unequalReport.analysis.shortWalk;
+  const metrics = unequalReport.taskAnalysis.taskResult.metrics;
   assert.equal(metrics.leftCycles, 3);
   assert.equal(metrics.rightCycles, 3);
   assert.ok(metrics.cycleDurationDifferenceMs < -100);
@@ -203,7 +201,7 @@ test('不等间隔采样、停顿后恢复和左右耗时差按真实时间计�
   assert.deepEqual(parseObservationReport(unequalReport), unequalReport);
 });
 
-test('缺失、短采集和截断不显示指标，辅助和安全停止独立且保持兼容', () => {
+test('缺失、短采集和截断不显示指标，辅助和不再创建安全停止结果', () => {
   for (const recording of [
     { ...walkRecording(), frames: [] },
     { ...walkRecording(), isTruncated: true },
@@ -218,83 +216,82 @@ test('缺失、短采集和截断不显示指标，辅助和安全停止独立�
     const report = reportFor(recording);
     assert.equal(report.captureQuality, 'invalid_capture');
     assert.equal(report.repetitions, null);
-    assert.equal(report.analysis.shortWalk.leftCycles, null);
-    assert.equal(report.analysis.shortWalk.leftKneeRange, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.leftCycles, null);
+    assert.equal(report.taskAnalysis.taskResult.metrics.leftKneeRange, null);
     assert.equal(report.taskStatus, 'partial');
     assert.deepEqual(parseObservationReport(report), report);
   }
   const assisted = createObservationReport(patient, session, walkRecording(), 'assisted', true);
   assert.deepEqual(parseObservationReport(assisted), assisted);
-  const stopped = createObservationReport(
-    patient,
-    { ...session, phase: 'stopped_safety', safetyStopReason: 'fatigue' },
-    walkRecording(),
-    'completed',
-    false,
+  assert.throws(() =>
+    createObservationReport(
+      patient,
+      { ...session, phase: 'stopped_safety' },
+      walkRecording(),
+      'completed',
+      false,
+    ),
   );
-  assert.equal(stopped.taskStatus, 'stopped_safety');
-  assert.deepEqual(parseObservationReport(stopped), stopped);
-  assert.ok(getObservationChanges(stopped, assisted).issues.length > 0);
 });
 
 test('报告边界按双侧时序重算周期，拒绝伪造时间、次数、侧别、位移和汇总', () => {
   const original = reportFor();
   for (const change of [
     (entry) => {
-      delete entry.analysis.shortWalk;
+      delete entry.taskAnalysis.taskResult.metrics;
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles = [];
+      entry.taskAnalysis.taskResult.metrics.cycles = [];
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles[0].side = 'right';
+      entry.taskAnalysis.taskResult.metrics.cycles[0].side = 'right';
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles[0].startedAtMs++;
+      entry.taskAnalysis.taskResult.metrics.cycles[0].startedAtMs++;
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles[0].extensionAtMs = 0;
+      entry.taskAnalysis.taskResult.metrics.cycles[0].extensionAtMs = 0;
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles[0].confirmedAtMs = 2500;
+      entry.taskAnalysis.taskResult.metrics.cycles[0].confirmedAtMs = 2500;
     },
     (entry) => {
-      entry.analysis.shortWalk.cycles[0].travelRatio = 0.01;
+      entry.taskAnalysis.taskResult.metrics.cycles[0].travelRatio = 0.01;
     },
     (entry) => {
-      entry.analysis.shortWalk.leftCycles++;
+      entry.taskAnalysis.taskResult.metrics.leftCycles++;
     },
     (entry) => {
-      entry.analysis.shortWalk.meanLeftCycleDurationMs++;
+      entry.taskAnalysis.taskResult.metrics.meanLeftCycleDurationMs++;
     },
     (entry) => {
-      entry.analysis.shortWalk.leftKneeRange++;
+      entry.taskAnalysis.taskResult.metrics.leftKneeRange++;
     },
     (entry) => {
-      entry.analysis.shortWalk.kneeRangeDifference++;
+      entry.taskAnalysis.taskResult.metrics.kneeRangeDifference++;
     },
     (entry) => {
-      entry.analysis.shortWalk.cycleDurationDifferenceMs++;
+      entry.taskAnalysis.taskResult.metrics.cycleDurationDifferenceMs++;
     },
     (entry) => {
-      entry.analysis.shortWalk.samples[12].leftKneeAngle++;
+      entry.taskAnalysis.taskResult.metrics.samples[12].leftKneeAngle++;
     },
     (entry) => {
-      entry.analysis.shortWalk.samples[12].rightKneeAngle = null;
+      entry.taskAnalysis.taskResult.metrics.samples[12].rightKneeAngle = null;
     },
     (entry) => {
-      entry.analysis.shortWalk.samples[12].segmentIndex++;
+      entry.taskAnalysis.taskResult.metrics.samples[12].segmentIndex++;
     },
     (entry) => {
-      entry.analysis.shortWalk.samples[12].timestampMs++;
+      entry.taskAnalysis.taskResult.metrics.samples[12].timestampMs++;
     },
     (entry) => {
-      entry.analysis.shortWalk.samples.forEach((sample) => {
+      entry.taskAnalysis.taskResult.metrics.samples.forEach((sample) => {
         sample.hipOffsetRatio = 0;
       });
     },
     (entry) => {
-      entry.analysis.marchInPlace = {};
+      entry.taskAnalysis.taskResult.metrics = {};
     },
   ]) {
     const changed = structuredClone(original);
@@ -302,7 +299,7 @@ test('报告边界按双侧时序重算周期，拒绝伪造时间、次数、�
     assert.throws(() => parseObservationReport(changed));
   }
   const invalid = reportFor({ ...walkRecording(), frames: [] });
-  invalid.analysis.shortWalk.leftCycles = 0;
+  invalid.taskAnalysis.taskResult.metrics.leftCycles = 0;
   assert.throws(() => parseObservationReport(invalid));
 });
 
@@ -329,8 +326,8 @@ test('最大帧数报告保留全部周期，持久化精度可重算且不丢�
   recording.durationMs = 900000;
   const report = reportFor(recording);
   assert.equal(report.captureQuality, 'valid');
-  assert.equal(report.analysis.shortWalk.samples.length, 9000);
-  assert.ok(report.analysis.shortWalk.cycles.length > 1000);
+  assert.equal(report.taskAnalysis.taskResult.metrics.samples.length, 9000);
+  assert.ok(report.taskAnalysis.taskResult.metrics.cycles.length > 1000);
   assert.ok(Buffer.byteLength(JSON.stringify(report)) < 1_800_000);
   assert.deepEqual(parseObservationReport(report), report);
 });

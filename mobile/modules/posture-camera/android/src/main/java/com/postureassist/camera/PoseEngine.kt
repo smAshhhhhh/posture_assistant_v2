@@ -68,7 +68,7 @@ internal class PoseEngine(
     lastTimestampMs = timestampMs
     val geometry = PoseImageGeometry(
       image.cropRect, image.imageInfo.rotationDegrees,
-      image.imageInfo.sensorToBufferTransformMatrix
+      image.imageInfo.sensorToBufferTransformMatrix, image.width, image.height
     )
     val raw = image.toBitmap()
     try {

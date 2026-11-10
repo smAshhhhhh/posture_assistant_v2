@@ -51,6 +51,7 @@ export function parseMarchInPlaceMetrics(
     const hasBreak = betweenSteps.some(
       (sample, index) =>
         sample.angle === null ||
+        (index > 0 && sample.segmentIndex !== betweenSteps[index - 1]?.segmentIndex) ||
         (index > 0 &&
           sample.timestampMs - (betweenSteps[index - 1]?.timestampMs ?? 0) >
             angleAnalysisSettings.maxGapMs),
@@ -70,6 +71,7 @@ export function parseMarchInPlaceMetrics(
       evidence.some(
         (sample, index) =>
           sample.angle === null ||
+          (index > 0 && sample.segmentIndex !== evidence[index - 1]?.segmentIndex) ||
           (index > 0 &&
             sample.timestampMs - (evidence[index - 1]?.timestampMs ?? 0) >
               angleAnalysisSettings.maxGapMs),

@@ -1,7 +1,7 @@
 import { getJointAngle } from './angleAnalysis';
 import { marchInPlaceSettings as settings } from './marchInPlaceProtocol';
 import type { MarchSide } from './marchInPlaceProtocol';
-import type { PoseFrame } from './poseRecording';
+import type { AnalysisFrame } from './analysisRecording';
 
 interface LegPosition {
   readonly ankleX: number;
@@ -20,7 +20,7 @@ export interface MarchPosition {
   readonly right: LegPosition;
 }
 
-function legPosition(frame: PoseFrame, side: MarchSide): LegPosition | null {
+function legPosition(frame: AnalysisFrame, side: MarchSide): LegPosition | null {
   const kneeAngle = getJointAngle(frame, side, 'march_in_place');
   const offset = side === 'left' ? 0 : 1;
   const hip = frame.landmarks[23 + offset];
@@ -42,7 +42,7 @@ function legPosition(frame: PoseFrame, side: MarchSide): LegPosition | null {
   };
 }
 
-export function marchPosition(frame: PoseFrame): MarchPosition | null {
+export function marchPosition(frame: AnalysisFrame): MarchPosition | null {
   const left = legPosition(frame, 'left');
   const right = legPosition(frame, 'right');
   return left && right

@@ -108,7 +108,7 @@ export function CapturePreparationScreen({
   const instructions = getTaskInstructions(task.id, patient.affectedSide);
   const isCapturing = flow.session.phase === 'capturing';
   const isPaused = flow.session.phase === 'paused';
-  const hasFinished = flow.session.phase === 'finished' || flow.session.phase === 'stopped_safety';
+  const hasFinished = flow.session.phase === 'finished';
   const feedback = getCaptureFeedback(flow.session, flow.camera, flow.isPreviewActive);
   const previewTitle = [task.name, patient.patientCode].join(' · ');
   const captureTitle = [

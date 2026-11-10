@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 class StoreException(val code: String) : RuntimeException(code)
 
 class PatientDatabase(private val context: Context) :
-  SQLiteOpenHelper(context, "posture-patients.db", null, 9) {
+  SQLiteOpenHelper(context, "posture-patients.db", null, 10) {
 
   init {
     setWriteAheadLoggingEnabled(true)
@@ -22,6 +22,7 @@ class PatientDatabase(private val context: Context) :
     executeSchema(db, R.raw.patient_schema)
     executeSchema(db, R.raw.observation_schema)
     executeSchema(db, R.raw.observation_media_schema)
+    executeContractUpgrade(db)
   }
 
   private fun executeSchema(db: SQLiteDatabase, resource: Int) {
@@ -33,11 +34,21 @@ class PatientDatabase(private val context: Context) :
   }
 
   override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-    if (newVersion != 9 || oldVersion !in 1..8) {
+    if (newVersion != 10 || oldVersion !in 1..9) {
       throw StoreException("SCHEMA_UNSUPPORTED")
     }
     if (oldVersion < 8) upgradeObservations(db, oldVersion)
-    executeSchema(db, R.raw.patient_photo_upgrade)
+    if (oldVersion < 9) executeSchema(db, R.raw.patient_photo_upgrade)
+    executeContractUpgrade(db)
+  }
+
+  private fun executeContractUpgrade(db: SQLiteDatabase) {
+    // 触发器保留旧安全记录，限制新写入；不能按分号拆开 BEGIN/END。
+    val source = context.resources.openRawResource(R.raw.observation_contract_upgrade)
+      .bufferedReader().use { it.readText() }
+    source.split("END;").map { it.trim() }.filter { it.isNotEmpty() }.forEach {
+      db.execSQL("$it END;")
+    }
   }
 
   private fun upgradeObservations(db: SQLiteDatabase, oldVersion: Int) {

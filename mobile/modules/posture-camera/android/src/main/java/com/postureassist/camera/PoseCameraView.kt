@@ -253,7 +253,7 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
         point.visibility().orElse(0f) >= 0.5f && point.presence().orElse(0f) >= 0.5f &&
           point.x() in 0f..1f && point.y() in 0f..1f && overlay.containsLandmark(index)
       }
-    recorder?.append(result, isClear, sampledAtMs)
+    recorder?.append(result, sampledAtMs)
     if (now - lastEmissionMs < 250L) return
     lastEmissionMs = now
     onStatus(mapOf(

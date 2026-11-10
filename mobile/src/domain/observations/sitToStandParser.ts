@@ -48,6 +48,7 @@ export function parseSitToStandMetrics(
       evidence.some(
         (sample, index) =>
           sample.angle === null ||
+          (index > 0 && sample.segmentIndex !== evidence[index - 1]?.segmentIndex) ||
           (index > 0 && sample.timestampMs - (evidence[index - 1]?.timestampMs ?? 0) > 250),
       )
     ) {

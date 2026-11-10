@@ -11,6 +11,7 @@ import {
 
 interface NativeObservationStore {
   observationVersion?: () => number;
+  observationContractVersion?: () => number;
   jointObservationVersion?: () => number;
   trunkObservationVersion?: () => number;
   sitToStandObservationVersion?: () => number;
@@ -36,7 +37,8 @@ function getStore(): NativeObservationStore {
 }
 
 function supportsTask(taskId: AngleObservationTaskId): boolean {
-  if (nativeStore?.observationVersion?.() !== 1) return false;
+  if (nativeStore?.observationVersion?.() !== 1 || nativeStore.observationContractVersion?.() !== 2)
+    return false;
   if (taskId === 'elbow_flexion_extension') return true;
   if (taskId === 'seated_trunk_lean') return nativeStore.trunkObservationVersion?.() === 1;
   if (taskId === 'sit_to_stand') return nativeStore.sitToStandObservationVersion?.() === 1;
@@ -62,6 +64,8 @@ export const observationRepository: ObservationRepository = {
     const store = getStore();
     if (
       !supportsTask(report.taskId) ||
+      store.observationContractVersion?.() !== 2 ||
+      report.sourceSchemaVersion === 1 ||
       (recording.video && store.observationVideoVersion?.() !== 1)
     ) {
       throw Object.assign(new Error('请更新动作观察存储模块'), { code: 'STORE_UNAVAILABLE' });

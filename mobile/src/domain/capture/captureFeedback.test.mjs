@@ -81,7 +81,7 @@ test('四种暂停原因均提示直接继续，设备恢复期间仍保持暂�
   }
 });
 
-test('设备错误说明在准备与暂停时均可见，安全停止优先于设备故障及识别状态', () => {
+test('设备错误说明在准备与暂停时均可见，结束后不再提供动作指令', () => {
   const error = parsePoseCameraState({ status: 'error', code: 'video_recording_failed' });
   const current = session();
   assert.match(getCaptureFeedback(current, error, false).message, /存储空间/);
@@ -92,11 +92,11 @@ test('设备错误说明在准备与暂停时均可见，安全停止优先于�
     reason: 'device_error',
   });
   assert.match(getCaptureFeedback(paused, error, false).message, /存储空间/);
-  const stopped = transitionCaptureSession(paused, { type: 'stop_safety', atMs: 2_000 });
+  const stopped = transitionCaptureSession(paused, { type: 'finish', atMs: 2_000 });
   for (const camera of [ready, error, initialPoseCameraState]) {
     const feedback = getCaptureFeedback(stopped, camera, true);
-    assert.equal(feedback.code, 'stopped_safety');
-    assert.match(feedback.message, /患者安全/);
+    assert.equal(feedback.code, 'finished');
+    assert.match(feedback.message, /已经停止/);
     assert.doesNotMatch(feedback.message, /继续采集/);
   }
 });

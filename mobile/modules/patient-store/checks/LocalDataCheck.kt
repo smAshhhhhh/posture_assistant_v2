@@ -50,7 +50,9 @@ fun main(args: Array<String>) {
       put("pose_file", "observations/$patientId.json")
       put("pose_bytes", poseFile.length())
       put("pose_sha256", hash)
-      put("report_json", """{"schemaVersion":1,"id":"$patientId"}""")
+      put("report_json", """{"schemaVersion":1,"id":"$patientId",
+        "taskId":"short_walk","protocolVersion":"walk-straight-side-v1",
+        "analysisVersion":"walk-knee-cycle-2d-v1"}""")
     }
     val exportSnapshot = JSONObject().apply {
       put("patients", org.json.JSONArray("""[{"id":"p1","age_years":null}]"""))
@@ -58,12 +60,22 @@ fun main(args: Array<String>) {
       put("observations", org.json.JSONArray().put(row))
     }
     val readReport: (String) -> String = { row.getString("report_json") }
-    val full = writeDataExport(exports, poses, exportSnapshot, scope, true, 3, readReport)
+    val metricRecords = org.json.JSONArray().put(JSONObject().apply {
+      put("recordingId", patientId)
+      put("taskId", "short_walk")
+      put("protocolVersion", "walk-straight-side-v1")
+      put("analysisVersion", "walk-knee-cycle-2d-v1")
+      put("metrics", org.json.JSONArray())
+    })
+    fun export(includePose: Boolean, photos: File? = null): File = writeDataExport(
+      exports, poses, exportSnapshot, scope, includePose, 10, readReport, photos, metricRecords
+    )
+    val full = export(true)
     java.util.zip.ZipFile(full).use { zip ->
       val names = zip.entries().asSequence().map { it.name }.toSet()
       check(names == setOf(
         "manifest.json", "patients.json", "assessments.json",
-        "reports/$patientId.json", "pose/$patientId.json"
+        "reports/$patientId.json", "pose/$patientId.json", "metrics/$patientId.json"
       ))
       val exportedPose = zip.getInputStream(zip.getEntry("pose/$patientId.json"))
         .bufferedReader().readText()
@@ -71,16 +83,20 @@ fun main(args: Array<String>) {
       val manifest = JSONObject(
         zip.getInputStream(zip.getEntry("manifest.json")).bufferedReader().readText()
       )
-      check(manifest.getInt("version") == 1 && manifest.getBoolean("includesPose"))
+      check(manifest.getInt("version") == 2 && manifest.getBoolean("includesPose"))
+      check(manifest.getInt("metricSchemaVersion") == 1)
+      val metrics = JSONObject(zip.getInputStream(zip.getEntry("metrics/$patientId.json"))
+        .bufferedReader().readText())
+      check(metrics.getString("recordingId") == patientId)
       check(!manifest.getBoolean("includesVideo"))
     }
     row.put("pose_sha256", "0".repeat(64))
     check(runCatching {
-      writeDataExport(exports, poses, exportSnapshot, scope, true, 3, readReport)
+      export(true)
     }.isFailure)
     check(exports.listFiles()?.isEmpty() == true)
     check(poseFile.delete())
-    val summary = writeDataExport(exports, poses, exportSnapshot, scope, false, 3, readReport)
+    val summary = export(false)
     java.util.zip.ZipFile(summary).use { zip ->
       check(zip.getEntry("pose/$patientId.json") == null)
       check(zip.getEntry("reports/$patientId.json") != null)
@@ -91,9 +107,7 @@ fun main(args: Array<String>) {
     val patient = exportSnapshot.getJSONArray("patients").getJSONObject(0)
     patient.put("photo_file", photoName)
     try {
-      val withPhotos = writeDataExport(
-        exports, poses, exportSnapshot, scope, false, 9, readReport, photos
-      )
+      val withPhotos = export(false, photos)
       java.util.zip.ZipFile(withPhotos).use { zip ->
         val entry = checkNotNull(zip.getEntry("patient-photos/$photoName"))
         check(zip.getInputStream(entry).use { it.readBytes() }.contentEquals(photo.readBytes()))
@@ -104,13 +118,13 @@ fun main(args: Array<String>) {
       }
       patient.put("photo_file", "../escape.jpg")
       check(runCatching {
-        writeDataExport(exports, poses, exportSnapshot, scope, false, 9, readReport, photos)
+        export(false, photos)
       }.isFailure)
       check(exports.listFiles()?.isEmpty() == true)
       patient.put("photo_file", photoName)
       check(photo.delete())
       check(runCatching {
-        writeDataExport(exports, poses, exportSnapshot, scope, false, 9, readReport, photos)
+        export(false, photos)
       }.isFailure)
       check(exports.listFiles()?.isEmpty() == true)
     } finally {
@@ -120,7 +134,7 @@ fun main(args: Array<String>) {
     }
     row.put("pose_file", "../escape")
     check(runCatching {
-      writeDataExport(exports, poses, exportSnapshot, scope, false, 3, readReport)
+      export(false)
     }.isFailure)
   } finally {
     exports.listFiles()?.forEach { check(it.delete()) }

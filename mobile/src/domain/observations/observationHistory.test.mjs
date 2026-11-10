@@ -10,6 +10,7 @@ const {
   getComparisonIssues,
   getObservationChanges,
 } = await loadTypeScript('src/domain/observations/observationHistory.ts');
+const { createTaskAnalysis } = await loadTypeScript('src/domain/observations/taskAnalysis.ts');
 const filter = {
   patientId: null,
   taskId: null,
@@ -44,6 +45,25 @@ const later = {
   durationMs: 5000,
   analysis: { rangeOfMotion: 20, minAngle: 130, maxAngle: 150 },
 };
+
+for (const record of [earlier, later]) {
+  record.taskAnalysis = createTaskAnalysis(
+    record.id,
+    record.durationMs,
+    record.taskId,
+    record.taskStatus,
+    {
+      ...record.analysis,
+      captureQuality: record.captureQuality,
+      repetitions: record.repetitions,
+      series: [],
+      coverage: 1,
+      validSampleCount: 40,
+      longestGapMs: 0,
+    },
+  );
+  delete record.analysis;
+}
 
 test('历史日期检查真实日历、闰年、区间顺序和单边界', () => {
   for (const value of ['2026-02-29', '2026-13-01', '2026-11-31', '2026-1-01', 'abc']) {
@@ -163,7 +183,11 @@ test('对比固定较晚减较早，真实零值保留，缺失值不产生假�
   const missing = getObservationChanges(earlier, {
     ...later,
     repetitions: null,
-    analysis: { ...later.analysis, rangeOfMotion: null },
+    taskAnalysis: {
+      ...later.taskAnalysis,
+      commonMetrics: { ...later.taskAnalysis.commonMetrics, repetitions: null },
+      taskResult: { angle: { ...later.taskAnalysis.taskResult.angle, rangeOfMotion: null } },
+    },
   });
   assert.equal(missing.metrics[0].change, null);
   assert.equal(missing.metrics[3].change, null);

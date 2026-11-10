@@ -3,7 +3,9 @@ import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 
-const { parsePoseRecording } = await loadTypeScript('src/domain/observations/poseRecording.ts');
+const { parsePoseRecording } = await loadTypeScript(
+  'src/domain/observations/legacyPoseRecording.ts',
+);
 const { parseObservationVideo } = await loadTypeScript(
   'src/domain/observations/observationVideo.ts',
 );

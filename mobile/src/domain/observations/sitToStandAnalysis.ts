@@ -3,7 +3,8 @@ import type { AffectedSide } from '../patients/types';
 import { analyzeJoint } from './angleAnalysis';
 import type { AngleAnalysis } from './angleAnalysis';
 import { angleAnalysisSettings, getAngleObservationProtocol } from './angleProtocols';
-import type { PoseFrame, PoseRecording } from './poseRecording';
+import { getAnalysisFrames, isSameCaptureSegment } from './analysisRecording';
+import type { AnalysisFrame, AnalyzableRecording } from './analysisRecording';
 import { sitToStandSettings, summarizeSitToStand } from './sitToStandProtocol';
 import type { SitToStandCycle } from './sitToStandProtocol';
 
@@ -35,7 +36,7 @@ type Movement =
       readonly descentStartedAtMs: number;
     };
 
-function bodyPosition(frame: PoseFrame, side: AffectedSide): BodyPosition | null {
+function bodyPosition(frame: AnalysisFrame, side: AffectedSide): BodyPosition | null {
   const offset = side === 'left' ? 0 : 1;
   const hip = frame.landmarks[23 + offset];
   const knee = frame.landmarks[25 + offset];
@@ -66,7 +67,11 @@ function isSameView(position: BodyPosition, anchor: BodyPosition): boolean {
   );
 }
 
-export function analyzeSitToStand(recording: PoseRecording, side: AffectedSide): AngleAnalysis {
+export function analyzeSitToStand(
+  recording: AnalyzableRecording,
+  side: AffectedSide,
+): AngleAnalysis {
+  const frames = getAnalysisFrames(recording);
   const base = analyzeJoint(recording, side, 'sit_to_stand');
   const protocol = getAngleObservationProtocol('sit_to_stand');
   const cycles: SitToStandCycle[] = [];
@@ -74,9 +79,12 @@ export function analyzeSitToStand(recording: PoseRecording, side: AffectedSide):
   let candidate: { readonly atMs: number; readonly position: BodyPosition } | null = null;
   let previousMs = -Infinity;
   const series = base.series.map((sample, index) => {
-    const frame = recording.frames[index];
+    const frame = frames[index];
     const position = frame && sample.angle !== null ? bodyPosition(frame, side) : null;
-    if (sample.timestampMs - previousMs > angleAnalysisSettings.maxGapMs) {
+    if (
+      !isSameCaptureSegment(frames[index - 1], frame) ||
+      sample.timestampMs - previousMs > angleAnalysisSettings.maxGapMs
+    ) {
       movement = { phase: 'unknown' };
       candidate = null;
     }
@@ -172,7 +180,12 @@ export function analyzeSitToStand(recording: PoseRecording, side: AffectedSide):
     if (!sample || sample.angle === null) continue;
     const previous = series[index - 1];
     const gapMs = previous ? sample.timestampMs - previous.timestampMs : Infinity;
-    if (previous?.angle !== null && gapMs <= angleAnalysisSettings.maxGapMs) coveredMs += gapMs;
+    if (
+      previous?.angle !== null &&
+      previous?.segmentIndex === sample.segmentIndex &&
+      gapMs <= angleAnalysisSettings.maxGapMs
+    )
+      coveredMs += gapMs;
     else longestGapMs = Math.max(longestGapMs, sample.timestampMs - gapStartMs);
     gapStartMs = sample.timestampMs;
     ++validSampleCount;

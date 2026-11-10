@@ -28,14 +28,18 @@ internal fun validateMarchInPlace(analysis: JSONObject, duration: Int) {
     requireRecord(start > previousEnd && peak >= start && peak < end && end - start in 150.0..3000.0)
     var hasBreak = false
     var priorBetweenTime = -1.0
+    var priorCaptureSegment: Int? = null
     for (sampleIndex in 0 until series.length()) {
       val sample = series.getJSONObject(sampleIndex)
       val time = sample.getDouble("timestampMs")
       if (time < previousEnd || time > start) continue
-      if (sample.isNull("angle") || (priorBetweenTime >= 0 && time - priorBetweenTime > 250)) {
+      if (sample.isNull("angle") || (priorBetweenTime >= 0 &&
+        (time - priorBetweenTime > 250 ||
+         sample.optionalInteger("segmentIndex") != priorCaptureSegment))) {
         hasBreak = true
       }
       priorBetweenTime = time
+      priorCaptureSegment = sample.optionalInteger("segmentIndex")
     }
     requireRecord(previousSegment < 0 || segment == previousSegment || hasBreak)
     var evidenceStart = if (segment == previousSegment) previousEnd else -1.0
@@ -47,13 +51,16 @@ internal fun validateMarchInPlace(analysis: JSONObject, duration: Int) {
     }
     requireRecord(evidenceStart >= 0)
     var previousTime = -1.0
+    var evidenceSegment: Int? = null
     val found = mutableSetOf<Double>()
     for (sampleIndex in 0 until series.length()) {
       val sample = series.getJSONObject(sampleIndex)
       val time = sample.getDouble("timestampMs")
       if (time < evidenceStart || time > end) continue
       requireRecord(!sample.isNull("angle"))
-      requireRecord(previousTime < 0 || time - previousTime <= 250)
+      requireRecord(previousTime < 0 || (time - previousTime <= 250 &&
+        sample.optionalInteger("segmentIndex") == evidenceSegment))
+      evidenceSegment = sample.optionalInteger("segmentIndex")
       found.add(time)
       previousTime = time
     }

@@ -2,15 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
+import { createObservationReport } from './recordingFixtures.mjs';
 
 const { analyzeJoint, getJointAngle } = await loadTypeScript(
   'src/domain/observations/angleAnalysis.ts',
 );
 const { getAngleObservationProtocol } = await loadTypeScript(
   'src/domain/observations/angleProtocols.ts',
-);
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
 );
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',
@@ -166,7 +164,7 @@ test('四种动作报告保存各自协议且可回读，拒绝错配协议和�
   );
 });
 
-test('新增任务的完成状态、质量与安全停止独立，辅助完成需与现场情况一致', () => {
+test('新增任务的完成状态与质量独立，辅助完成需与现场情况一致', () => {
   for (const taskId of ['shoulder_flexion', 'seated_knee_extension', 'seated_trunk_lean']) {
     const invalid = createObservationReport(
       patient,
@@ -178,16 +176,15 @@ test('新增任务的完成状态、质量与安全停止独立，辅助完成�
     assert.equal(invalid.taskStatus, 'completed');
     assert.equal(invalid.captureQuality, 'invalid_capture');
     assert.deepEqual(parseObservationReport(invalid), invalid);
-    const safety = createObservationReport(
-      patient,
-      { ...session(taskId), phase: 'stopped_safety', safetyStopReason: 'pain' },
-      recording(cycle(taskId)),
-      'completed',
-      false,
+    assert.throws(() =>
+      createObservationReport(
+        patient,
+        { ...session(taskId), phase: 'stopped_safety' },
+        recording(cycle(taskId)),
+        'completed',
+        false,
+      ),
     );
-    assert.equal(safety.taskStatus, 'stopped_safety');
-    assert.equal(safety.safetyStopReason, 'pain');
-    assert.deepEqual(parseObservationReport(safety), safety);
     assert.throws(() =>
       createObservationReport(patient, session(taskId), recording([]), 'completed', true),
     );

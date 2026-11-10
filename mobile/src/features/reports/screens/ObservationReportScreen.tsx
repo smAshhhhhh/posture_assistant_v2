@@ -1,7 +1,8 @@
+import { getAngleAnalysis } from '@/domain/observations/taskAnalysis';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
 
-import { safetyStopReasonLabels } from '@/domain/capture/captureSession';
+import { safetyStopReasonLabels } from '@/domain/capture/legacyCaptureStatus';
 import type { ObservationVideoPlayerProps } from '@/domain/observations/observationVideo';
 
 import { getObservationErrorMessage } from '@/domain/observations/observationReport';
@@ -67,7 +68,7 @@ export function ObservationReportScreen({
             <ObservationVideoCard key={id} id={id} repository={repository} Player={VideoPlayer} />
             <ObservationReportContent
               taskId={report.taskId}
-              analysis={report.analysis}
+              analysis={getAngleAnalysis(report.taskAnalysis)}
               durationMs={report.durationMs}
               taskStatus={report.taskStatus}
               hasAssistance={report.assistance !== 'none'}
@@ -76,8 +77,8 @@ export function ObservationReportScreen({
           {report.taskStatus === 'stopped_safety' ? (
             <AppText>
               安全停止原因：
-              {report.safetyStopReason
-                ? safetyStopReasonLabels[report.safetyStopReason]
+              {report.legacySafetyStopReason
+                ? safetyStopReasonLabels[report.legacySafetyStopReason]
                 : '尚未补充'}
             </AppText>
           ) : null}

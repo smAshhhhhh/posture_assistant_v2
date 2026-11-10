@@ -1,6 +1,6 @@
 import { Select } from 'heroui-native/select';
 import { useRef } from 'react';
-import type { ComponentRef } from 'react';
+import type { ComponentRef, ReactNode } from 'react';
 import { ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,8 @@ import type { AppFieldProps } from './AppField';
 interface SelectOption {
   readonly value: string;
   readonly label: string;
+  readonly endContent?: ReactNode;
+  readonly accessibilityLabel?: string;
 }
 
 interface AppSelectProps extends AppFieldProps {
@@ -85,7 +87,17 @@ export function AppSelect({
                 showsVerticalScrollIndicator={false}
               >
                 {options.map((option) => (
-                  <Select.Item key={option.value} {...option} className="min-h-12 px-0" />
+                  <Select.Item
+                    key={option.value}
+                    value={option.value}
+                    label={option.label}
+                    accessibilityLabel={option.accessibilityLabel ?? option.label}
+                    className="min-h-12 gap-3 px-0"
+                  >
+                    <Select.ItemLabel className="min-w-0 flex-1 shrink" />
+                    <Select.ItemIndicator />
+                    {option.endContent}
+                  </Select.Item>
                 ))}
               </ScrollView>
             </Select.Content>

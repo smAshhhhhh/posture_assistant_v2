@@ -102,30 +102,16 @@ test('中断后保持暂停，前台且保留人工确认时才能显式恢复',
   }
 });
 
-test('安全停止立即结束计时，不能被结束、恢复或放弃覆盖', () => {
-  for (const shouldPause of [false, true]) {
-    const active = start();
-    const source = shouldPause
-      ? transitionCaptureSession(active, { type: 'pause', atMs: 2_000, reason: 'manual' })
-      : active;
-    const stopped = transitionCaptureSession(source, { type: 'stop_safety', atMs: 3_000 });
-    assert.equal(stopped.phase, 'stopped_safety');
-    assert.equal(stopped.taskStatus, 'stopped_safety');
-    assert.equal(stopped.captureQuality, null);
-    assert.equal(stopped.activeSinceMs, null);
-
-    for (const type of ['finish', 'discard', 'start', 'resume', 'stop_safety']) {
-      assert.equal(transitionCaptureSession(stopped, { type, atMs: 4_000, readiness }), stopped);
-    }
-    const annotated = transitionCaptureSession(stopped, {
-      type: 'record_safety_reason',
-      atMs: 5_000,
-      reason: 'pain',
-    });
-    assert.equal(annotated.safetyStopReason, 'pain');
-    assert.equal(annotated.taskStatus, 'stopped_safety');
-    assert.equal(annotated.elapsedActiveMs, shouldPause ? 1_000 : 2_000);
+test('旧安全事件不再改变新采集流程，普通结束仍停止计时', () => {
+  const active = start();
+  for (const type of ['stop_safety', 'record_safety_reason']) {
+    assert.equal(transitionCaptureSession(active, { type, atMs: 3000, reason: 'pain' }), active);
   }
+  const ended = transitionCaptureSession(active, { type: 'finish', atMs: 3000 });
+  assert.equal(ended.phase, 'finished');
+  assert.equal(ended.activeSinceMs, null);
+  assert.equal(ended.taskStatus, null);
+  assert.equal(ended.elapsedActiveMs, 2000);
 });
 
 test('重复点击、不合法顺序和乱序时间戳不改变会话', () => {

@@ -85,6 +85,7 @@ class PatientStoreModule : Module() {
       mainHandler.post { videoViews.forEach { it.suspendPlayback() } }
     }
     Function("observationVersion") { 1 }
+    Function("observationContractVersion") { 2 }
     Function("jointObservationVersion") { 1 }
     Function("trunkObservationVersion") { 1 }
     Function("sitToStandObservationVersion") { 1 }
@@ -93,6 +94,7 @@ class PatientStoreModule : Module() {
     Function("observationVideoVersion") { 1 }
     Function("observationPlaybackVersion") { 1 }
     Function("dataManagementVersion") { 1 }
+    Function("metricExportVersion") { 1 }
     Function("modelPreferencesVersion") { 1 }
     Function("assessmentManagementVersion") { 1 }
     Function("patientPhotoVersion") { 1 }
@@ -128,7 +130,20 @@ class PatientStoreModule : Module() {
     AsyncFunction("cleanOrphans") { promise: Promise ->
       run(promise) { LocalDataRecords(it, checkNotNull(appContext.reactContext)).cleanOrphans() }
     }
-    AsyncFunction("exportLocalData") { scope: String, includePose: Boolean, promise: Promise ->
+    AsyncFunction("getExportReports") { scope: String, promise: Promise ->
+      run(promise) { store ->
+        val snapshot = LocalDataRecords(store, checkNotNull(appContext.reactContext))
+          .snapshot(DataScope.parse(scope)).getJSONArray("observations")
+        val reports = org.json.JSONArray()
+        for (index in 0 until snapshot.length()) {
+          val id = snapshot.getJSONObject(index).getString("id")
+          reports.put(org.json.JSONObject(readObservationReport(store.readableDatabase, id)))
+        }
+        reports.toString()
+      }
+    }
+    AsyncFunction("exportLocalData") {
+      scope: String, includePose: Boolean, metrics: String, promise: Promise ->
       if (exportBusy) {
         promise.reject("BUSY", "已有导出正在进行", null)
       } else {
@@ -136,7 +151,7 @@ class PatientStoreModule : Module() {
         enqueue(promise, onFailure = { mainHandler.post { exportBusy = false } }) { store ->
           try {
             val file = LocalDataExport(store, checkNotNull(appContext.reactContext))
-              .prepare(DataScope.parse(scope), includePose)
+              .prepare(DataScope.parse(scope), includePose, metrics)
             mainHandler.post {
               try {
                 synchronized(queueLock) { check(!isClosing) }

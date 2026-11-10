@@ -4,7 +4,7 @@ import type { AngleAnalysis } from '@/domain/observations/angleAnalysis';
 import { getAngleObservationProtocol } from '@/domain/observations/angleProtocols';
 import type { AngleObservationTaskId } from '@/domain/observations/angleProtocols';
 import { captureQualityLabels, taskStatusLabels } from '@/domain/observations/types';
-import type { TaskStatus } from '@/domain/observations/types';
+import type { HistoricalTaskStatus } from '@/domain/observations/types';
 import { AppCard } from '@/shared/ui/AppCard';
 import { AppCardStack } from '@/shared/ui/AppCardStack';
 import { AppText } from '@/shared/ui/AppText';
@@ -19,7 +19,7 @@ interface ObservationReportContentProps {
   readonly taskId: AngleObservationTaskId;
   readonly analysis: AngleAnalysis;
   readonly durationMs: number;
-  readonly taskStatus: TaskStatus | null;
+  readonly taskStatus: HistoricalTaskStatus | null;
   readonly hasAssistance: boolean;
 }
 

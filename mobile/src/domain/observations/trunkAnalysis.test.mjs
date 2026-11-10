@@ -2,15 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
+import { createObservationReport } from './recordingFixtures.mjs';
 
 const { analyzeJoint, getJointAngle } = await loadTypeScript(
   'src/domain/observations/angleAnalysis.ts',
 );
 const { getAngleObservationProtocol } = await loadTypeScript(
   'src/domain/observations/angleProtocols.ts',
-);
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
 );
 const { parseObservationReport } = await loadTypeScript(
   'src/domain/observations/observationParser.ts',

@@ -21,6 +21,7 @@ internal fun validateSitToStand(analysis: JSONObject, duration: Int) {
     requireRecord(start > previousEnd && start < standing && standing + 300 <= descent &&
       descent < end && end + 300 <= duration)
     var previous = -1.0
+    var captureSegment: Int? = null
     val found = mutableSetOf<Double>()
     var confirmedAt = -1.0
     for (sampleIndex in 0 until series.length()) {
@@ -29,6 +30,8 @@ internal fun validateSitToStand(analysis: JSONObject, duration: Int) {
       if (time < start) continue
       requireRecord(!sample.isNull("angle"))
       requireRecord(previous < 0 || time - previous <= 250)
+      requireRecord(previous < 0 || sample.optionalInteger("segmentIndex") == captureSegment)
+      captureSegment = sample.optionalInteger("segmentIndex")
       found.add(time)
       previous = time
       if (time >= end + 300) {

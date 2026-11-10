@@ -3,7 +3,7 @@ package com.postureassist.patients
 import org.json.JSONObject
 import java.util.UUID
 
-internal fun validateObservation(report: JSONObject, pose: JSONObject) {
+internal fun validateLegacyObservation(report: JSONObject, pose: JSONObject) {
   val id = report.recordText("id")
   requireRecord(UUID.fromString(id).toString() == id)
   requireRecord(report.optInt("schemaVersion") == 1 && pose.optInt("schemaVersion") == 1)

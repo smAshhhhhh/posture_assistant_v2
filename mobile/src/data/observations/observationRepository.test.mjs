@@ -6,12 +6,10 @@ import ts from 'typescript';
 
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { walkRecording } from '../../domain/observations/shortWalkFixtures.mjs';
+import { createObservationReport } from '../../domain/observations/recordingFixtures.mjs';
 
 const parsers = await loadTypeScript('src/domain/observations/observationParser.ts');
 const videoParsers = await loadTypeScript('src/domain/observations/observationVideo.ts');
-const { createObservationReport } = await loadTypeScript(
-  'src/domain/observations/observationReport.ts',
-);
 const source = await readFile('src/data/observations/observationRepository.ts', 'utf8');
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -57,16 +55,16 @@ function repository(store) {
   return module.exports.observationRepository;
 }
 
-test('旧包按真实原生能力放行肘肩膝，躯干在采集前提示更新且不能调用保存', async () => {
+test('旧包仍可回读历史，但缺少新版数据契约时不放行新采集', async () => {
   const none = repository(null);
   assert.equal(none.supportsTask('seated_trunk_lean'), false);
   const elbowOnly = repository({ observationVersion: () => 1 });
-  assert.equal(elbowOnly.supportsTask('elbow_flexion_extension'), true);
+  assert.equal(elbowOnly.supportsTask('elbow_flexion_extension'), false);
   assert.equal(elbowOnly.supportsTask('shoulder_flexion'), false);
   assert.equal(elbowOnly.supportsTask('seated_knee_extension'), false);
   const previous = repository({ observationVersion: () => 1, jointObservationVersion: () => 1 });
   for (const taskId of ['elbow_flexion_extension', 'shoulder_flexion', 'seated_knee_extension']) {
-    assert.equal(previous.supportsTask(taskId), true);
+    assert.equal(previous.supportsTask(taskId), false);
   }
   assert.equal(previous.supportsTask('seated_trunk_lean'), false);
   await assert.rejects(previous.save(report('seated_trunk_lean'), pose), {
@@ -78,6 +76,7 @@ test('新版原生模块接收躯干报告和关键点，保存回执可重新�
   const expected = report('seated_trunk_lean');
   const saved = [];
   const current = repository({
+    observationContractVersion: () => 2,
     observationVersion: () => 1,
     jointObservationVersion: () => 1,
     trunkObservationVersion: () => 1,
@@ -110,6 +109,7 @@ test('旧存储包不能丢弃视频后静默保存，新版保留录像并可�
     segments: [{ uri: 'file:///data/user/0/app/files/video.mp4', durationMs: 1000 }],
   };
   const current = repository({
+    observationContractVersion: () => 2,
     observationVersion: () => 1,
     observationVideoVersion: () => 1,
     saveObservation: async (reportJson, recordingJson) => {
@@ -135,6 +135,7 @@ test('坐站能力独立检查，旧包拒绝保存，新版可保存并回读�
   const expected = report('sit_to_stand');
   const recording = { ...pose, video: { segments: [], error: 'recording_failed' } };
   const current = repository({
+    observationContractVersion: () => 2,
     observationVersion: () => 1,
     sitToStandObservationVersion: () => 1,
     observationVideoVersion: () => 1,
@@ -174,6 +175,7 @@ test('踏步能力独立检查，旧坐站包不能保存，新版保存报告�
     segments: [{ uri: 'file:///data/user/0/app/files/march.mp4', durationMs: 1000 }],
   };
   const current = repository({
+    observationContractVersion: () => 2,
     observationVersion: () => 1,
     marchObservationVersion: () => 1,
     observationVideoVersion: () => 1,
@@ -225,6 +227,7 @@ test('步行能力独立检查，旧踏步包不能保存，新版保存报告�
     segments: [{ uri: 'file:///data/user/0/app/files/walk.mp4', durationMs: 1000 }],
   };
   const current = repository({
+    observationContractVersion: () => 2,
     observationVersion: () => 1,
     shortWalkObservationVersion: () => 1,
     observationVideoVersion: () => 1,

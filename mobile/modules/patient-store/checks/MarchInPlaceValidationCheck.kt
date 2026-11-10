@@ -13,12 +13,12 @@ fun main(args: Array<String>) {
     val report = entry.getJSONObject("report")
     val pose = entry.getJSONObject("pose")
     if (report.getString("taskId") != "march_in_place") continue
-    validateObservation(report, pose)
+    validateLegacyObservation(report, pose)
     accepted++
     fun reject(change: (JSONObject) -> Unit) {
       val changed = JSONObject(report.toString())
       change(changed.getJSONObject("analysis"))
-      check(runCatching { validateObservation(changed, pose) }.isFailure)
+      check(runCatching { validateLegacyObservation(changed, pose) }.isFailure)
       rejected++
     }
     reject { it.remove("marchInPlace") }

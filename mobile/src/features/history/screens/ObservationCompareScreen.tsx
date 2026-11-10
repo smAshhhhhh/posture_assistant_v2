@@ -21,6 +21,8 @@ import { AppText } from '@/shared/ui/AppText';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
+import { CaptureQualityChip } from '../components/CaptureQualityChip';
+
 interface ObservationCompareScreenProps {
   readonly id: string;
   readonly observations: readonly ObservationSummary[];
@@ -78,7 +80,9 @@ export function ObservationCompareScreen({
               value={selectedId}
               options={candidates.map((item) => ({
                 value: item.id,
-                label: `${formatDateTime(item.observedAt)} · ${captureQualityLabels[item.captureQuality]}`,
+                label: formatDateTime(item.observedAt),
+                accessibilityLabel: `${formatDateTime(item.observedAt)}，${captureQualityLabels[item.captureQuality]}`,
+                endContent: <CaptureQualityChip quality={item.captureQuality} />,
               }))}
               onChange={(value) => {
                 setOther(null);

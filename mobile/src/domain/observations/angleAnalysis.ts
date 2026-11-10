@@ -3,7 +3,8 @@ import type { AffectedSide } from '../patients/types';
 
 import { angleAnalysisSettings, getAngleObservationProtocol } from './angleProtocols';
 import type { AngleObservationTaskId } from './angleProtocols';
-import type { PoseFrame, PoseLandmark, PoseRecording } from './poseRecording';
+import { getAnalysisFrames, isSameCaptureSegment } from './analysisRecording';
+import type { AnalysisFrame, AnalysisLandmark, AnalyzableRecording } from './analysisRecording';
 import type { CaptureQuality } from './types';
 import type { SitToStandMetrics } from './sitToStandProtocol';
 import type { MarchInPlaceMetrics } from './marchInPlaceProtocol';
@@ -12,6 +13,7 @@ import type { ShortWalkMetrics } from './shortWalkProtocol';
 export interface AngleSample {
   readonly timestampMs: number;
   readonly angle: number | null;
+  readonly segmentIndex?: number;
 }
 
 export interface AngleAnalysis {
@@ -29,7 +31,7 @@ export interface AngleAnalysis {
   readonly shortWalk?: ShortWalkMetrics;
 }
 
-function isUsable(point: PoseLandmark | undefined): point is PoseLandmark {
+function isUsable(point: AnalysisLandmark | undefined): point is AnalysisLandmark {
   return (
     point !== undefined &&
     point.visibility >= angleAnalysisSettings.confidence &&
@@ -42,7 +44,7 @@ function isUsable(point: PoseLandmark | undefined): point is PoseLandmark {
 }
 
 export function getJointAngle(
-  frame: PoseFrame,
+  frame: AnalysisFrame,
   side: AffectedSide,
   taskId: AngleObservationTaskId,
 ): number | null {
@@ -77,11 +79,12 @@ export function getJointAngle(
 }
 
 export function analyzeJoint(
-  recording: PoseRecording,
+  recording: AnalyzableRecording,
   side: AffectedSide,
   taskId: AngleObservationTaskId,
 ): AngleAnalysis {
   const protocol = getAngleObservationProtocol(taskId);
+  const frames = getAnalysisFrames(recording);
   let filtered: number | null = null;
   let previous: AngleSample | null = null;
   let coveredMs = 0;
@@ -91,10 +94,14 @@ export function analyzeJoint(
   let repetitions = 0;
   let phase: 'unknown' | 'start' | 'target' = 'unknown';
   const angles: number[] = [];
-  const series = recording.frames.map((frame): AngleSample => {
+  const series = frames.map((frame, index): AngleSample => {
     const raw = getJointAngle(frame, side, taskId);
     const gapMs = previous ? frame.timestampMs - previous.timestampMs : Infinity;
-    const isContinuous = previous?.angle !== null && gapMs <= angleAnalysisSettings.maxGapMs;
+    const isContinuous =
+      previous?.angle !== null &&
+      isSameCaptureSegment(frames[index - 1], frame) &&
+      gapMs <= angleAnalysisSettings.maxGapMs;
+    if (!isContinuous) filtered = null;
     if (raw === null) {
       filtered = null;
       phase = 'unknown';
@@ -125,7 +132,11 @@ export function analyzeJoint(
         phase = 'target';
       }
     }
-    previous = { timestampMs: frame.timestampMs, angle: filtered };
+    previous = {
+      timestampMs: frame.timestampMs,
+      angle: filtered,
+      ...(frame.segmentIndex === undefined ? {} : { segmentIndex: frame.segmentIndex }),
+    };
     return previous;
   });
   longestGapMs = Math.max(longestGapMs, recording.durationMs - gapStartMs);

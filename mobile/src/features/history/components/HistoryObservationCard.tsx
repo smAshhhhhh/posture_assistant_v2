@@ -1,25 +1,19 @@
-import { Chip } from 'heroui-native/chip';
-import type { ChipColor } from 'heroui-native/chip';
 import { View } from 'react-native';
 
 import { captureQualityLabels, taskStatusLabels } from '@/domain/observations/types';
-import type { CaptureQuality, ObservationSummary } from '@/domain/observations/types';
+import type { ObservationSummary } from '@/domain/observations/types';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { AppCard } from '@/shared/ui/AppCard';
 import { AppPressable } from '@/shared/ui/AppPressable';
 import { AppText } from '@/shared/ui/AppText';
+
+import { CaptureQualityChip } from './CaptureQualityChip';
 
 interface HistoryObservationCardProps {
   readonly observation: ObservationSummary;
   readonly patientCode: string;
   readonly onPress: () => void;
 }
-
-const qualityColors: Record<CaptureQuality, ChipColor> = {
-  valid: 'success',
-  degraded: 'warning',
-  invalid_capture: 'danger',
-};
 
 export function HistoryObservationCard({
   observation,
@@ -55,16 +49,7 @@ export function HistoryObservationCard({
       <AppCard className="gap-1">
         <View className="flex-row items-start gap-3">
           <AppText className="min-w-0 flex-1 font-medium">{observation.taskName}</AppText>
-          <Chip
-            className="max-w-[45%] shrink"
-            pointerEvents="none"
-            accessibilityRole="text"
-            color={qualityColors[observation.captureQuality]}
-            size="sm"
-            variant="soft"
-          >
-            <Chip.Label className="shrink">{quality}</Chip.Label>
-          </Chip>
+          <CaptureQualityChip quality={observation.captureQuality} />
         </View>
         <AppText className="text-muted" variant="caption">
           {patientCode} · {affectedSide} · {observedAt}

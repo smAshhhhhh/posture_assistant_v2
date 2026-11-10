@@ -1,15 +1,16 @@
+import { extractMotionMetrics, metricDisplayUnits } from './motionMetrics';
 import type { AffectedSide } from '../patients/types';
 import { isValidPastDate } from '../patients/patientRecord';
 import type { RehabTaskId } from '../tasks/taskCatalog';
 
 import type { ObservationReport } from './observationReport';
-import type { CaptureQuality, ObservationSummary, TaskStatus } from './types';
+import type { CaptureQuality, ObservationSummary, HistoricalTaskStatus } from './types';
 
 export interface HistoryFilter {
   readonly patientId: string | null;
   readonly taskId: RehabTaskId | null;
   readonly quality: CaptureQuality | null;
-  readonly status: TaskStatus | null;
+  readonly status: HistoricalTaskStatus | null;
   readonly side: AffectedSide | null;
   readonly from: string;
   readonly through: string;
@@ -82,131 +83,24 @@ export function getObservationChanges(first: ObservationReport, second: Observat
     Date.parse(first.observedAt) <= Date.parse(second.observedAt)
       ? [first, second]
       : [second, first];
-  const difference = (before: number | null, after: number | null) =>
-    before === null || after === null ? null : after - before;
-  const isTrunk = earlier.taskId === 'seated_trunk_lean';
+  const earlierMetrics = extractMotionMetrics(earlier.taskAnalysis);
+  const laterMetrics = extractMotionMetrics(later.taskAnalysis);
   return {
     issues,
     earlier,
     later,
-    metrics: [
-      {
-        label: isTrunk
-          ? '躯干倾角变化范围'
-          : ['sit_to_stand', 'march_in_place', 'short_walk'].includes(earlier.taskId)
-            ? '患侧膝夹角变化范围'
-            : '活动范围',
-        unit: '°',
-        before: earlier.analysis.rangeOfMotion,
-        after: later.analysis.rangeOfMotion,
-      },
-      {
-        label: isTrunk ? '最小倾角' : '最小夹角',
-        unit: '°',
-        before: earlier.analysis.minAngle,
-        after: later.analysis.minAngle,
-      },
-      {
-        label: isTrunk ? '最大倾角' : '最大夹角',
-        unit: '°',
-        before: earlier.analysis.maxAngle,
-        after: later.analysis.maxAngle,
-      },
-      {
-        label:
-          earlier.taskId === 'sit_to_stand'
-            ? '完整坐站往返'
-            : earlier.taskId === 'march_in_place'
-              ? '完整踏步'
-              : earlier.taskId === 'short_walk'
-                ? '患侧膝部完整周期'
-                : '识别周期',
-        unit: earlier.taskId === 'march_in_place' ? '步' : '次',
-        before: earlier.repetitions,
-        after: later.repetitions,
-      },
-      {
-        label: '采集时长（不含暂停）',
-        unit: '秒',
-        before: earlier.durationMs / 1_000,
-        after: later.durationMs / 1_000,
-      },
-      ...(earlier.taskId === 'sit_to_stand'
-        ? (['meanRiseDurationMs', 'meanDescentDurationMs'] as const).map((key) => ({
-            label: key === 'meanRiseDurationMs' ? '平均起身耗时' : '平均坐回耗时',
-            unit: '秒',
-            before:
-              earlier.analysis.sitToStand?.[key] == null
-                ? null
-                : earlier.analysis.sitToStand[key] / 1_000,
-            after:
-              later.analysis.sitToStand?.[key] == null
-                ? null
-                : later.analysis.sitToStand[key] / 1_000,
-          }))
-        : []),
-      ...(earlier.taskId === 'march_in_place'
-        ? (
-            [
-              'leftSteps',
-              'rightSteps',
-              'alternationErrors',
-              'meanStepDurationMs',
-              'cadencePerMinute',
-            ] as const
-          ).map((key) => {
-            const descriptions = {
-              leftSteps: ['左脚', '步'],
-              rightSteps: ['右脚', '步'],
-              alternationErrors: ['连续同侧', '次'],
-              meanStepDurationMs: ['平均单步耗时', '秒'],
-              cadencePerMinute: ['全程平均步频', '步/分'],
-            };
-            const before = earlier.analysis.marchInPlace?.[key] ?? null;
-            const after = later.analysis.marchInPlace?.[key] ?? null;
-            const divisor = key === 'meanStepDurationMs' ? 1_000 : 1;
-            return {
-              label: descriptions[key][0],
-              unit: descriptions[key][1],
-              before: before === null ? null : before / divisor,
-              after: after === null ? null : after / divisor,
-            };
-          })
-        : []),
-      ...(earlier.taskId === 'short_walk'
-        ? (
-            [
-              'leftCycles',
-              'rightCycles',
-              'meanLeftCycleDurationMs',
-              'meanRightCycleDurationMs',
-              'leftKneeRange',
-              'rightKneeRange',
-              'kneeRangeDifference',
-              'cycleDurationDifferenceMs',
-            ] as const
-          ).map((key) => {
-            const descriptions = {
-              leftCycles: ['左侧完整周期', '次'],
-              rightCycles: ['右侧完整周期', '次'],
-              meanLeftCycleDurationMs: ['左侧平均周期耗时', '秒'],
-              meanRightCycleDurationMs: ['右侧平均周期耗时', '秒'],
-              leftKneeRange: ['左膝夹角变化范围', '°'],
-              rightKneeRange: ['右膝夹角变化范围', '°'],
-              kneeRangeDifference: ['夹角范围差（左减右）', '°'],
-              cycleDurationDifferenceMs: ['周期耗时差（左减右）', '秒'],
-            };
-            const divisor = key.endsWith('Ms') ? 1_000 : 1;
-            const before = earlier.analysis.shortWalk?.[key] ?? null;
-            const after = later.analysis.shortWalk?.[key] ?? null;
-            return {
-              label: descriptions[key][0],
-              unit: descriptions[key][1],
-              before: before === null ? null : before / divisor,
-              after: after === null ? null : after / divisor,
-            };
-          })
-        : []),
-    ].map((metric) => ({ ...metric, change: difference(metric.before, metric.after) })),
+    metrics: earlierMetrics.map(({ definition, metric }) => {
+      const laterMetric = laterMetrics.find((item) => item.definition.id === definition.id)?.metric;
+      const divisor = definition.unit === 'millisecond' ? 1_000 : 1;
+      const before = metric.value === null ? null : metric.value / divisor;
+      const after = laterMetric?.value == null ? null : laterMetric.value / divisor;
+      return {
+        label: definition.label,
+        unit: metricDisplayUnits[definition.unit],
+        before,
+        after,
+        change: before === null || after === null ? null : after - before,
+      };
+    }),
   };
 }
