@@ -27,11 +27,12 @@ import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
-import { CameraPermissionBadge } from '../components/CameraPermissionBadge';
 import { CameraPermissionCard } from '../components/CameraPermissionCard';
 import { CaptureAssistanceCard } from '../components/CaptureAssistanceCard';
 import { CaptureControls } from '../components/CaptureControls';
 import { CaptureFeedbackCard } from '../components/CaptureFeedbackCard';
+import { CaptureGuidanceCard } from '../components/CaptureGuidanceCard';
+import { CapturePreviewLabels } from '../components/CapturePreviewLabels';
 import { CaptureResultNotice } from '../components/CaptureResultNotice';
 import { CaptureStartCard } from '../components/CaptureStartCard';
 import { CaptureTimerCard } from '../components/CaptureTimerCard';
@@ -79,6 +80,9 @@ export function CapturePreparationScreen({
   const mounted = useRef(true);
   const hasNavigated = useRef(false);
   const shouldRecord = isAngleObservationTask(task.id);
+  // 同一次观察固定使用进入页面时的模型，暂停恢复也不能改变。
+  const [poseModel] = useState(preferences.poseModel);
+  const isModelSupported = poseModel === 'lite' || poseGateway.canSelectPoseModel === true;
   const context: CaptureContext = useMemo(
     () => ({
       patientId: patient.id,
@@ -99,12 +103,19 @@ export function CapturePreparationScreen({
     hasSafetyConfirmation,
     shouldRecord,
     canSaveObservation,
+    canUsePoseModel: isModelSupported,
   });
   const instructions = getTaskInstructions(task.id, patient.affectedSide);
   const isCapturing = flow.session.phase === 'capturing';
   const isPaused = flow.session.phase === 'paused';
   const hasFinished = flow.session.phase === 'finished' || flow.session.phase === 'stopped_safety';
   const feedback = getCaptureFeedback(flow.session, flow.camera, flow.isPreviewActive);
+  const previewTitle = [task.name, patient.patientCode].join(' · ');
+  const captureTitle = [
+    task.name,
+    patient.patientCode,
+    affectedSideLabels[patient.affectedSide],
+  ].join(' · ');
 
   const review = async () => {
     if (reading.current || !hasFinished || !poseGateway.finishRecording) return;
@@ -212,9 +223,7 @@ export function CapturePreparationScreen({
         />
       }
     >
-      <AppText className="text-muted">
-        {task.name} · {patient.patientCode} · {affectedSideLabels[patient.affectedSide]}
-      </AppText>
+      {hasFinished ? <AppText className="text-muted">{captureTitle}</AppText> : null}
       {hasFinished ? (
         <CaptureResultNotice
           isReleasing={flow.isReleasing}
@@ -229,28 +238,27 @@ export function CapturePreparationScreen({
       ) : (
         <>
           <AppCardStack>
-            <View className="gap-2">
-              <CameraPermissionBadge permission={camera.permission} />
-              <View
-                className="w-full overflow-hidden rounded-[24px] bg-surface"
-                style={{ aspectRatio: layoutTokens.videoAspectRatio }}
-              >
-                {poseGateway.isAvailable && flow.isPreviewActive ? (
-                  <CameraPreview
-                    active
-                    showSkeleton={preferences.showSkeleton}
-                    requiredLandmarks={requiredLandmarks}
-                    onStatus={flow.onCameraStatus}
-                  />
-                ) : (
-                  <View className="flex-1 items-center justify-center gap-3 p-4">
-                    <Camera color={theme.muted} size={32} />
-                    <AppText className="text-center">
-                      {isPaused ? '采集已暂停' : '相机预览未开启'}
-                    </AppText>
-                  </View>
-                )}
-              </View>
+            <View
+              className="w-full overflow-hidden rounded-[24px] bg-surface"
+              style={{ position: 'relative', aspectRatio: layoutTokens.videoAspectRatio }}
+            >
+              {poseGateway.isAvailable && flow.isPreviewActive && isModelSupported ? (
+                <CameraPreview
+                  active
+                  showSkeleton={preferences.showSkeleton}
+                  poseModel={poseModel}
+                  requiredLandmarks={requiredLandmarks}
+                  onStatus={flow.onCameraStatus}
+                />
+              ) : (
+                <View className="flex-1 items-center justify-center gap-3 p-4">
+                  <Camera color={theme.muted} size={32} />
+                  <AppText className="text-center">
+                    {isPaused ? '采集已暂停' : '相机预览未开启'}
+                  </AppText>
+                </View>
+              )}
+              <CapturePreviewLabels title={previewTitle} permission={camera.permission} />
             </View>
             {isCapturing || isPaused ? (
               <>
@@ -258,6 +266,9 @@ export function CapturePreparationScreen({
                   session={flow.session}
                   camera={flow.camera}
                   isPreviewActive={flow.isPreviewActive}
+                />
+                <CaptureGuidanceCard
+                  session={flow.session}
                   showCaptureHints={preferences.showCaptureHints}
                 />
                 <CaptureTimerCard
@@ -318,10 +329,13 @@ export function CapturePreparationScreen({
         </>
       )}
       {shouldRecord && (!poseGateway.canRecord || !poseGateway.canRecordVideo) ? (
-        <AppNotice status="warning">请重新构建安装包，加载 4:3 视频与关键点记录能力。</AppNotice>
+        <AppNotice status="warning">请重新构建安装包，加载竖向视频与关键点记录能力。</AppNotice>
       ) : null}
       {shouldRecord && !canSaveObservation ? (
         <AppNotice status="warning">请重新构建安装包，加载此任务的报告存储能力。</AppNotice>
+      ) : null}
+      {!isModelSupported ? (
+        <AppNotice status="warning">请更新安装包以使用所选模型，或在设置中改用 Lite。</AppNotice>
       ) : null}
       {flow.recordingError ? <AppNotice>{flow.recordingError}</AppNotice> : null}
       {isReading ? <AppLoading>正在读取采集数据…</AppLoading> : null}

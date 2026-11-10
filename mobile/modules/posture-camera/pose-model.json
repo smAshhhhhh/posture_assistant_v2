@@ -1,8 +1,31 @@
 {
-  "name": "pose_landmarker_lite",
-  "version": "float16/1",
-  "fileName": "pose_landmarker_lite.task",
-  "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task?generation=1682624736756847",
-  "sizeBytes": 5777746,
-  "md5": "04a75ddf7c811ac7a1a4523266dd7d88"
+  "models": [
+    {
+      "id": "lite",
+      "name": "pose_landmarker_lite",
+      "version": "float16/1",
+      "fileName": "pose_landmarker_lite.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task?generation=1682624736756847",
+      "sizeBytes": 5777746,
+      "md5": "04a75ddf7c811ac7a1a4523266dd7d88"
+    },
+    {
+      "id": "full",
+      "name": "pose_landmarker_full",
+      "version": "float16/1",
+      "fileName": "pose_landmarker_full.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task?generation=1682642785209422",
+      "sizeBytes": 9398198,
+      "md5": "83879689d373d143be094c972355e48e"
+    },
+    {
+      "id": "heavy",
+      "name": "pose_landmarker_heavy",
+      "version": "float16/1",
+      "fileName": "pose_landmarker_heavy.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task?generation=1682642785425305",
+      "sizeBytes": 30664242,
+      "md5": "453dec4d02ccc4d3ce812b6de84fa516"
+    }
+  ]
 }

@@ -7,6 +7,7 @@ export const layoutTokens = {
   minimumTouchSize: 48,
   sectionGap: 24,
   cardGap: 16,
-  videoAspectRatio: 4 / 3,
+  // 手机竖向取景，aspectRatio 使用宽／高。
+  videoAspectRatio: 3 / 4,
   tabBarHeight: 56,
 } as const;

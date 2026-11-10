@@ -1,9 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { View } from 'react-native';
 
-import { AppButton } from '@/shared/ui/AppButton';
+import { AppDescription } from '@/shared/ui/AppDescription';
 import { AppHeader } from '@/shared/ui/AppHeader';
-import { AppListGroup, AppListItem, AppListSeparator } from '@/shared/ui/AppListGroup';
 import { AppText } from '@/shared/ui/AppText';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 import { appVersion } from '@/shared/lib/appVersion';
@@ -36,21 +35,19 @@ export function FeatureInfoScreen({ navigation, route }: FeatureInfoScreenProps)
         <AppText accessibilityRole="header" variant="title">
           {content.title}
         </AppText>
-        <AppText className="text-muted">{content.description}</AppText>
+        <AppDescription className="px-0">{content.description}</AppDescription>
       </View>
-      <AppListGroup>
-        <AppListItem title="用途说明" description={content.detail} />
-        <AppListSeparator />
-        <AppListItem title="应用版本" description={`PostureAssist V2 · ${appVersion}`} />
-        <AppListSeparator />
-        <AppListItem
-          title="隐私与数据"
-          description="核心功能可离线使用，不自动上传患者资料。导出包含健康相关数据，文件未加密，请妥善保管；当前不支持导入或云同步。卸载应用或清除应用数据会移除本机资料，系统保存位置中的导出文件需自行删除。"
-        />
-      </AppListGroup>
-      <AppButton onPress={navigation.goBack} variant="secondary">
-        返回
-      </AppButton>
+      <View className="gap-2 px-4">
+        <AppText variant="section">用途说明</AppText>
+        <AppDescription className="px-0">{content.detail}</AppDescription>
+      </View>
+      <View className="gap-2 px-4">
+        <AppText variant="section">隐私与数据</AppText>
+        <AppDescription className="px-0">
+          核心功能可离线使用，不自动上传患者资料。导出包含健康相关数据，文件未加密，请妥善保管；当前不支持导入或云同步。卸载应用或清除应用数据会移除本机资料，系统保存位置中的导出文件需自行删除。
+        </AppDescription>
+      </View>
+      <AppDescription>应用版本 · Posture Assistant V2 · {appVersion}</AppDescription>
     </ScreenLayout>
   );
 }

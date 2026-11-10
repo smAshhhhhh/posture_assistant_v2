@@ -28,6 +28,7 @@ interface CaptureFlowOptions {
   readonly gateway: PoseCameraGateway;
   readonly shouldRecord: boolean;
   readonly canSaveObservation: boolean;
+  readonly canUsePoseModel: boolean;
 }
 
 export function useCaptureFlow({
@@ -38,6 +39,7 @@ export function useCaptureFlow({
   gateway,
   shouldRecord,
   canSaveObservation,
+  canUsePoseModel,
 }: CaptureFlowOptions) {
   const [session, setSession] = useState(() => createCaptureSession(context));
   const sessionRef = useRef(session);
@@ -184,7 +186,11 @@ export function useCaptureFlow({
       shouldRecord &&
       (!gateway.canRecord || !gateway.canRecordVideo || !gateway.beginRecording)
     ) {
-      setRecordingError('请重新构建安装包，加载 4:3 视频与关键点记录能力。');
+      setRecordingError('请重新构建安装包，加载竖向视频与关键点记录能力。');
+      return;
+    }
+    if (!canUsePoseModel) {
+      setRecordingError('请更新安装包以使用所选模型，或在设置中改用 Lite。');
       return;
     }
     if (shouldRecord && !canSaveObservation) {
@@ -243,6 +249,7 @@ export function useCaptureFlow({
   }, [
     applyEvent,
     canSaveObservation,
+    canUsePoseModel,
     cameraStartup,
     gateway,
     interrupt,

@@ -32,7 +32,7 @@ class PoseRecorder {
 
   @Synchronized fun failVideo() { videoFailed = true }
 
-  @Synchronized fun begin(resume: Boolean) {
+  @Synchronized fun begin(resume: Boolean, modelVersion: String) {
     check(activeSinceMs == null) { "采集已开始" }
     if (!resume) {
       frames = JSONArray()
@@ -47,10 +47,11 @@ class PoseRecorder {
         put("observedAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
           timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date()))
-        put("modelVersion", "pose_landmarker_lite/float16/1")
+        put("modelVersion", modelVersion)
       }
     }
     check(record != null) { "缺少采集会话" }
+    check(record?.getString("modelVersion") == modelVersion) { "同一观察不能混用模型" }
     hasVideoStarted = false
     activeSinceMs = SystemClock.uptimeMillis()
   }

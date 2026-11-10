@@ -13,7 +13,7 @@ const { parseLocalDataStats, parseDeletionPreview } = await loadTypeScript(
 test('采集偏好只接受明确布尔值，保留 false 并拒绝缺字段和伪布尔值', () => {
   assert.deepEqual(parseAppPreferences(defaultAppPreferences), defaultAppPreferences);
   const values = { showSkeleton: false, showCaptureHints: false, defaultAssistance: true };
-  assert.deepEqual(parseAppPreferences(values), values);
+  assert.deepEqual(parseAppPreferences(values), { ...values, poseModel: 'lite' });
   for (const bad of [
     null,
     [],
@@ -22,6 +22,16 @@ test('采集偏好只接受明确布尔值，保留 false 并拒绝缺字段和�
     { ...values, showCaptureHints: 'false' },
   ]) {
     assert.throws(() => parseAppPreferences(bad));
+  }
+});
+
+test('三档模型偏好准确回读，旧设置迁移为 Lite，拒绝未知型号', () => {
+  for (const poseModel of ['lite', 'full', 'heavy']) {
+    const preferences = { ...defaultAppPreferences, poseModel };
+    assert.deepEqual(parseAppPreferences(preferences), preferences);
+  }
+  for (const poseModel of [null, '', 'Full', 'other', 1, true]) {
+    assert.throws(() => parseAppPreferences({ ...defaultAppPreferences, poseModel }));
   }
 });
 

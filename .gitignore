@@ -27,6 +27,7 @@ dist/
 coverage/
 *.tsbuildinfo
 *.log
+/mobile/modules/posture-camera/android/src/main/assets/*.download
 
 # 原生工程由 Expo 配置和插件生成。
 /mobile/android/

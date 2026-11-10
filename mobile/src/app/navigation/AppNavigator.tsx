@@ -168,8 +168,13 @@ export function AppNavigator() {
             workspace.preferences.status === 'ready' ? (
               <CaptureSettingsScreen
                 value={workspace.preferences.value}
+                canSelectPoseModel={
+                  workspace.preferences.canSelectPoseModel &&
+                  poseCameraGateway.canSelectPoseModel === true
+                }
                 error={workspace.preferences.error}
-                onSave={workspace.preferences.save}
+                isSaving={workspace.preferences.isSaving}
+                onChange={workspace.preferences.save}
                 onBack={navigation.goBack}
               />
             ) : (
@@ -309,6 +314,18 @@ export function AppNavigator() {
             const patient = workspace.patients.find((item) => item.id === route.params.patientId);
             if (!task || !patient)
               return captureUnavailable(() => navigation.popTo('Main', { screen: 'Capture' }));
+            if (workspace.preferences.status !== 'ready' || workspace.preferences.isSaving) {
+              return (
+                <UnavailableScreen
+                  title="采集设置"
+                  description={workspace.preferences.error ?? '正在读取采集设置…'}
+                  isLoading={workspace.preferences.status !== 'error'}
+                  onReturn={navigation.goBack}
+                  onRetry={() => void workspace.preferences.refresh()}
+                  returnLabel="返回"
+                />
+              );
+            }
 
             return (
               <CapturePreparationScreen

@@ -1,4 +1,5 @@
 import type { PoseRecording } from '../observations/poseRecording';
+import type { PoseModelId } from './poseModel';
 
 export type PoseCameraStatus =
   'starting' | 'ready' | 'stopped' | 'background' | 'interrupted' | 'error';
@@ -15,6 +16,7 @@ export interface PoseCameraState {
 export interface PoseCameraPreviewProps {
   readonly active: boolean;
   readonly showSkeleton: boolean;
+  readonly poseModel: PoseModelId;
   readonly requiredLandmarks: readonly number[];
   readonly onStatus: (state: PoseCameraState) => void;
 }
@@ -23,6 +25,7 @@ export interface PoseCameraGateway {
   readonly isAvailable: boolean;
   readonly canRecord?: boolean;
   readonly canRecordVideo?: boolean;
+  readonly canSelectPoseModel?: boolean;
   beginRecording?(resume: boolean): Promise<void>;
   finishRecording?(): Promise<PoseRecording>;
   discardVideo?(id: string): Promise<void>;

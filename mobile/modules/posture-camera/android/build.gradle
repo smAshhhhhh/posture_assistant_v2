@@ -31,32 +31,33 @@ dependencies {
 // 构建只校验本地模型，缺失时交由开发者手动下载。
 def verifyPoseModel = tasks.register('verifyPoseModel') {
   def specification = file('../pose-model.json')
-  def model = file('src/main/assets/pose_landmarker_lite.task')
-  def fingerprint = file('src/main/assets/pose-model-lock.json')
   inputs.file(specification)
-  inputs.files(model, fingerprint)
+  inputs.files(fileTree('src/main/assets') { include '*.task', '*-lock.json' })
 
   doLast {
-    if (!model.isFile() || !fingerprint.isFile()) {
-      throw new GradleException('缺少姿态模型，请在 mobile 目录手动执行 npm run model:download。')
-    }
-    def expected = new JsonSlurper().parse(specification)
-    def locked = new JsonSlurper().parse(fingerprint)
-    def sha256 = MessageDigest.getInstance('SHA-256')
-    def md5 = MessageDigest.getInstance('MD5')
-    model.withInputStream { stream ->
-      byte[] buffer = new byte[65536]
-      int count
-      while ((count = stream.read(buffer)) > 0) {
-        sha256.update(buffer, 0, count)
-        md5.update(buffer, 0, count)
+    new JsonSlurper().parse(specification).models.each { expected ->
+      def model = file("src/main/assets/${expected.fileName}")
+      def fingerprint = file("src/main/assets/pose-model-${expected.id}-lock.json")
+      if (!model.isFile() || !fingerprint.isFile()) {
+        throw new GradleException("缺少 ${expected.id} 模型，请在 mobile 目录手动执行 npm.cmd run model:download。")
       }
-    }
-    if (model.length() != expected.sizeBytes ||
-        md5.digest().encodeHex().toString() != expected.md5 ||
-        sha256.digest().encodeHex().toString() != locked.sha256 ||
-        locked.version != expected.version) {
-      throw new GradleException('姿态模型校验失败，请检查模型文件及 pose-model-lock.json。')
+      def locked = new JsonSlurper().parse(fingerprint)
+      def sha256 = MessageDigest.getInstance('SHA-256')
+      def md5 = MessageDigest.getInstance('MD5')
+      model.withInputStream { stream ->
+        byte[] buffer = new byte[65536]
+        int count
+        while ((count = stream.read(buffer)) > 0) {
+          sha256.update(buffer, 0, count)
+          md5.update(buffer, 0, count)
+        }
+      }
+      if (model.length() != expected.sizeBytes ||
+          md5.digest().encodeHex().toString() != expected.md5 ||
+          sha256.digest().encodeHex().toString() != locked.sha256 ||
+          locked.name != expected.name || locked.version != expected.version) {
+        throw new GradleException("${expected.id} 姿态模型校验失败，请检查模型文件及锁定信息。")
+      }
     }
   }
 }

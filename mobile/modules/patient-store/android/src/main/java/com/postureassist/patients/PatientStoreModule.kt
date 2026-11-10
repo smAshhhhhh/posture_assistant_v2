@@ -93,6 +93,7 @@ class PatientStoreModule : Module() {
     Function("observationVideoVersion") { 1 }
     Function("observationPlaybackVersion") { 1 }
     Function("dataManagementVersion") { 1 }
+    Function("modelPreferencesVersion") { 1 }
     Function("assessmentManagementVersion") { 1 }
     Function("patientPhotoVersion") { 1 }
     AsyncFunction("choosePatientPhoto") { promise: Promise ->
@@ -144,7 +145,7 @@ class PatientStoreModule : Module() {
                 activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                   addCategory(Intent.CATEGORY_OPENABLE)
                   type = "application/zip"
-                  putExtra(Intent.EXTRA_TITLE, "PostureAssist-${System.currentTimeMillis()}.zip")
+                  putExtra(Intent.EXTRA_TITLE, "PostureAssistant-${System.currentTimeMillis()}.zip")
                 }, exportRequestCode)
               } catch (_: Exception) {
                 pendingExport = null

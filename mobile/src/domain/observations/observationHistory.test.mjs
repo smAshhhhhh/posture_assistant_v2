@@ -139,6 +139,19 @@ test('对比拒绝每一项协议不一致、低质量、安全停止和同条�
   assert.ok(getComparisonIssues({ ...earlier, taskStatus: 'stopped_safety' }, later).length);
 });
 
+test('Lite、Full、Heavy 模型之间不能直接对比，同一模型仍可对比', () => {
+  const versions = ['lite', 'full', 'heavy'].map((id) => `pose_landmarker_${id}/float16/1`);
+  for (const firstVersion of versions) {
+    for (const secondVersion of versions) {
+      const issues = getComparisonIssues(
+        { ...earlier, modelVersion: firstVersion },
+        { ...later, modelVersion: secondVersion },
+      );
+      assert.equal(issues.includes('姿态模型版本不同。'), firstVersion !== secondVersion);
+    }
+  }
+});
+
 test('对比固定较晚减较早，真实零值保留，缺失值不产生假差值', () => {
   const changes = getObservationChanges(later, earlier);
   assert.equal(changes.earlier.id, 'early');

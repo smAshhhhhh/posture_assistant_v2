@@ -6,15 +6,11 @@ import {
   validateHistoryDates,
 } from '@/domain/observations/observationHistory';
 import type { HistoryFilter } from '@/domain/observations/observationHistory';
-import { captureQualityLabels, taskStatusLabels } from '@/domain/observations/types';
+import { captureQualityLabels } from '@/domain/observations/types';
 import type { ObservationSummary } from '@/domain/observations/types';
-import { affectedSideLabels } from '@/domain/patients/types';
 import type { PatientSummary } from '@/domain/patients/types';
 import { rehabTasks } from '@/domain/tasks/taskCatalog';
-import { formatDateTime } from '@/shared/lib/formatDateTime';
-import { AppCard } from '@/shared/ui/AppCard';
 import { AppCardStack } from '@/shared/ui/AppCardStack';
-import { AppPressable } from '@/shared/ui/AppPressable';
 import { AppButton } from '@/shared/ui/AppButton';
 import { AppHeader } from '@/shared/ui/AppHeader';
 import { AppLoading } from '@/shared/ui/AppLoading';
@@ -25,6 +21,7 @@ import { AppSelect } from '@/shared/ui/AppSelect';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
+import { HistoryObservationCard } from '../components/HistoryObservationCard';
 import { HistoryPatientSelect } from '../components/HistoryPatientSelect';
 
 interface HistoryScreenProps {
@@ -184,35 +181,15 @@ export function HistoryScreen({
       ) : filtered.length > 0 ? (
         <AppCardStack>
           {filtered.map((observation) => (
-            <AppPressable
-              className="rounded-[24px]"
+            <HistoryObservationCard
               key={observation.id}
-              accessibilityRole="button"
-              accessibilityLabel={`查看${observation.taskName}观察报告`}
+              observation={observation}
+              patientCode={
+                patients.find((item) => item.id === observation.patientId)?.patientCode ??
+                '患者档案'
+              }
               onPress={() => onOpenObservation(observation.id)}
-            >
-              <AppCard className="gap-2">
-                <AppText className="font-medium">{observation.taskName}</AppText>
-                <AppText variant="caption">
-                  {patients.find((item) => item.id === observation.patientId)?.patientCode ??
-                    '患者档案'}
-                </AppText>
-                <AppText className="text-muted" variant="caption">
-                  {formatDateTime(observation.observedAt)} ·{' '}
-                  {affectedSideLabels[observation.affectedSide]}
-                </AppText>
-                <AppText className="text-muted" variant="caption">
-                  {taskStatusLabels[observation.taskStatus]} ·{' '}
-                  {captureQualityLabels[observation.captureQuality]}
-                </AppText>
-                <AppText variant="caption">
-                  {observation.taskId === 'short_walk' ? '患侧周期 ' : ''}
-                  {observation.repetitions === null ? '—' : observation.repetitions}{' '}
-                  {observation.taskId === 'march_in_place' ? '步' : '次'} ·{' '}
-                  {observation.durationMs / 1_000} 秒
-                </AppText>
-              </AppCard>
-            </AppPressable>
+            />
           ))}
         </AppCardStack>
       ) : null}

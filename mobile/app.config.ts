@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'PostureAssist',
+  name: 'Posture Assistant',
   slug: 'postureassist',
   version: '0.1.0',
   icon: './assets/branding/app-icon.png',

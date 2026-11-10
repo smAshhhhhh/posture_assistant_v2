@@ -35,13 +35,15 @@ class PoseCameraModule : Module() {
     }
 
     Function("recordingVersion") { 1 }
-    Function("videoRecordingVersion") { 2 }
+    Function("videoRecordingVersion") { 3 }
+    Function("modelSelectionVersion") { 1 }
     AsyncFunction("beginRecording") { resume: Boolean, promise: Promise ->
       try {
         check(views.none { it.hasPendingVideo() }) { "上一段录像尚未停止" }
         if (!resume) recorder.recordingId()?.let { discardVideo(it) }
-        recorder.begin(resume)
-        checkNotNull(views.lastOrNull { !it.isDestroyed }).beginVideo { started ->
+        val view = checkNotNull(views.lastOrNull { !it.isDestroyed })
+        recorder.begin(resume, view.recordingModelVersion())
+        view.beginVideo { started ->
           if (started) promise.resolve()
           else {
             recorder.pause()
@@ -114,6 +116,7 @@ class PoseCameraModule : Module() {
       Prop("showSkeleton") { view: PoseCameraView, enabled: Boolean ->
         view.setShowSkeleton(enabled)
       }
+      Prop("poseModel") { view: PoseCameraView, id: String -> view.setPoseModel(id) }
       OnViewDidUpdateProps { view: PoseCameraView -> view.synchronize() }
       OnViewDestroys { view: PoseCameraView ->
         view.destroy { released -> if (released) views.remove(view) }

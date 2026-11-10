@@ -42,7 +42,7 @@ export function AppHeader({ title, onBack, onHelp }: AppHeaderProps) {
         </View>
       ) : (
         <AppText className="min-w-0 flex-1 text-[19px] font-medium">
-          {title ?? 'PostureAssist'}
+          {title ?? 'Posture Assistant'}
         </AppText>
       )}
       {onHelp ? (

@@ -21,17 +21,20 @@ data class PoseOutput(
   val frameTimestampMs: Long
 )
 
-class PoseEngine(private val context: Context) : AutoCloseable {
+internal class PoseEngine(
+  private val context: Context,
+  private val model: PoseModel
+) : AutoCloseable {
   private var landmarker: PoseLandmarker? = null
   private var lastTimestampMs = -1L
 
   // 模型初始化、推理和释放始终在同一个工作线程执行。
   fun initialize() {
-    val expected = context.assets.open("pose-model-lock.json").bufferedReader().use {
+    val expected = context.assets.open(model.lockName).bufferedReader().use {
       JSONObject(it.readText())
     }
     val digest = MessageDigest.getInstance("SHA-256")
-    context.assets.open("pose_landmarker_lite.task").use { stream ->
+    context.assets.open(model.assetName).use { stream ->
       val buffer = ByteArray(65_536)
       var count = stream.read(buffer)
       while (count > 0) {
@@ -41,10 +44,11 @@ class PoseEngine(private val context: Context) : AutoCloseable {
     }
     val actual = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
     check(expected.getString("version") == "float16/1") { "模型版本不匹配" }
+    check(expected.getString("name") == model.assetStem) { "模型名称不匹配" }
     check(actual == expected.getString("sha256")) { "模型校验失败" }
 
     val baseOptions = BaseOptions.builder()
-      .setModelAssetPath("pose_landmarker_lite.task")
+      .setModelAssetPath(model.assetName)
       .setDelegate(Delegate.CPU)
       .build()
     val options = PoseLandmarker.PoseLandmarkerOptions.builder()

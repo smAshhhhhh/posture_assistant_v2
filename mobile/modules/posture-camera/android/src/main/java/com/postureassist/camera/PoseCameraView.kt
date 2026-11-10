@@ -38,6 +38,20 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
   val onStatus by EventDispatcher()
   var requiredLandmarks: Set<Int> = emptySet()
   var recorder: PoseRecorder? = null
+  private var model = PoseModel.LITE
+  private var loadedModelVersion: String? = null
+
+  fun setPoseModel(id: String) {
+    val next = PoseModel.fromId(id)
+    if (next == model) return
+    check(!isRunning && !isReleasing) { "观察期间不能切换模型" }
+    model = next
+  }
+
+  fun recordingModelVersion(): String {
+    check(isRunning && !isReleasing && isRequestedActive) { "相机尚未就绪" }
+    return checkNotNull(loadedModelVersion) { "模型尚未就绪" }
+  }
   private val preview = PreviewView(context).apply {
     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
     scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -128,18 +142,25 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
       return
     }
     isRunning = true
+    loadedModelVersion = null
+    val selectedModel = model
     val token = generation.incrementAndGet()
     emit("starting")
     worker.execute {
       try {
-        val nextEngine = PoseEngine(context)
+        val nextEngine = PoseEngine(context, selectedModel)
         engine = nextEngine
         nextEngine.initialize()
         if (generation.get() != token) {
           // 已排队的停止操作负责释放，保留关闭失败的重试机会。
           return@execute
         }
-        mainHandler.post { if (generation.get() == token) bindCamera(owner, token) }
+        mainHandler.post {
+          if (generation.get() == token) {
+            loadedModelVersion = selectedModel.version
+            bindCamera(owner, token)
+          }
+        }
       } catch (_: Exception) {
         mainHandler.post { if (generation.get() == token) fail("model_unavailable") }
       } catch (_: LinkageError) {
@@ -169,11 +190,12 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
               )
             ).build()
           ).build()
-        // 按显示方向统一取景；CameraX 将同一裁切实际编码进视频。
-        val viewPort = ViewPort.Builder(Rational(4, 3), rotation)
+        // 竖向取景宽／高为 3:4，预览、识别与编码共用裁切。
+        val viewPort = ViewPort.Builder(Rational(3, 4), rotation)
           .setScaleType(ViewPort.FILL_CENTER)
           .build()
         val video = VideoCapture.withOutput(Recorder.Builder()
+          // 输入按传感器横向比例选流，输出方向由 rotation 和视口决定。
           .setAspectRatio(AspectRatio.RATIO_4_3)
           .setQualitySelector(QualitySelector.from(
             Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
@@ -269,6 +291,7 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     generation.incrementAndGet()
     needsRearm = true
     isRunning = false
+    loadedModelVersion = null
     runCatching { analysisUseCase?.clearAnalyzer() }
     overlay.clear()
     if (reason != "error") emit(reason)

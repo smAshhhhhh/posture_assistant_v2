@@ -8,6 +8,7 @@ export function useAppPreferences(repository: PreferencesRepository) {
   const [value, setValue] = useState(defaultAppPreferences);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const mounted = useRef(false);
   const busy = useRef(false);
   const generation = useRef(0);
@@ -46,6 +47,7 @@ export function useAppPreferences(repository: PreferencesRepository) {
   const save = async (next: AppPreferences) => {
     if (busy.current) return false;
     busy.current = true;
+    setIsSaving(true);
     ++generation.current;
     setError(null);
     try {
@@ -60,7 +62,16 @@ export function useAppPreferences(repository: PreferencesRepository) {
       return false;
     } finally {
       busy.current = false;
+      if (mounted.current) setIsSaving(false);
     }
   };
-  return { value, status, error, save, refresh };
+  return {
+    value,
+    status,
+    error,
+    isSaving,
+    save,
+    refresh,
+    canSelectPoseModel: repository.canSelectPoseModel === true,
+  };
 }

@@ -7,6 +7,7 @@ import type { LocalDataRepository, LocalDataScope } from '@/domain/storage/local
 import { AppButton } from '@/shared/ui/AppButton';
 import { useConfirmAction } from '@/shared/ui/AppConfirmationProvider';
 import { AppCardStack } from '@/shared/ui/AppCardStack';
+import { AppDescription } from '@/shared/ui/AppDescription';
 import { AppHeader } from '@/shared/ui/AppHeader';
 import { AppLoading } from '@/shared/ui/AppLoading';
 import { AppNotice } from '@/shared/ui/AppNotice';
@@ -81,25 +82,26 @@ export function LocalDataScreen({
     <ScreenLayout hasTabBar={false} header={<AppHeader title="本地数据" onBack={onBack} />}>
       <AppText variant="title">设备中的资料</AppText>
       {data.stats ? (
-        <AppListGroup>
-          <AppListItem
-            title="资料数量"
-            description={
-              `患者 ${data.stats.patients} 位 · 评估 ${data.stats.assessments} 条` +
-              ` · 观察 ${data.stats.observations} 条`
-            }
-          />
-          <AppListSeparator />
-          <AppListItem title="数据库" description={bytes(data.stats.databaseBytes)} />
-          <AppListSeparator />
-          <AppListItem title="关键点文件" description={bytes(data.stats.poseBytes)} />
-          <AppListSeparator />
-          <AppListItem title="原始视频" description={bytes(data.stats.videoBytes)} />
-          <AppListSeparator />
-          <AppListItem title="患者头像" description={bytes(data.stats.photoBytes)} />
-          <AppListSeparator />
-          <AppListItem title="统计范围" description="全部本机资料，不含离线模型和应用安装包。" />
-        </AppListGroup>
+        <View className="gap-2">
+          <AppListGroup>
+            <AppListItem
+              title="资料数量"
+              description={
+                `患者 ${data.stats.patients} 位 · 评估 ${data.stats.assessments} 条` +
+                ` · 观察 ${data.stats.observations} 条`
+              }
+            />
+            <AppListSeparator />
+            <AppListItem title="数据库" description={bytes(data.stats.databaseBytes)} />
+            <AppListSeparator />
+            <AppListItem title="关键点文件" description={bytes(data.stats.poseBytes)} />
+            <AppListSeparator />
+            <AppListItem title="原始视频" description={bytes(data.stats.videoBytes)} />
+            <AppListSeparator />
+            <AppListItem title="患者头像" description={bytes(data.stats.photoBytes)} />
+          </AppListGroup>
+          <AppDescription>统计全部本机资料，不含离线模型和应用安装包。</AppDescription>
+        </View>
       ) : null}
       <AppButton variant="secondary" isDisabled={isBusy} onPress={() => void data.refresh()}>
         刷新统计
@@ -121,90 +123,100 @@ export function LocalDataScreen({
       )}
       <AppText variant="section">导出资料</AppText>
       <AppCardStack>
-        <AppListGroup>
-          <AppListSwitchItem
-            title="包含原始关键点文件"
-            description="导出报告时附带本次范围内的关键点文件。"
-            isSelected={includePose}
-            isDisabled={isBusy}
-            onChange={setIncludePose}
-          />
-          <AppListSeparator />
-          <AppListItem
-            title="导出范围与内容"
-            description="报告本身也包含健康相关数据。导出包含患者头像，单条记录会附带所属患者资料；不包含原始视频。"
-          >
-            <View className="mt-2">
-              <AppButton isDisabled={isBusy || !repository.isAvailable} onPress={exportData}>
-                导出{label}
-              </AppButton>
-            </View>
-          </AppListItem>
-        </AppListGroup>
-        <AppListGroup>
-          <AppListItem
-            title="删除资料"
-            description="单条观察删除报告、对应关键点和原始视频；删除患者同时移除其头像、评估和全部观察。删除全部资料不会重置采集偏好。"
-          >
-            <View className="mt-2 gap-3">
-              {data.preview ? (
-                <>
-                  <AppNotice status="warning" isInline>{`确认永久删除${label}？`}</AppNotice>
-                  <AppText>
-                    {data.preview.patients} 位患者、{data.preview.assessments} 条专业评估、
-                    {data.preview.observations} 条观察及对应关键点和原始视频。此操作无法撤销。
-                  </AppText>
+        <View className="gap-2">
+          <AppListGroup>
+            <AppListSwitchItem
+              title="包含原始关键点文件"
+              description="导出报告时附带本次范围内的关键点文件。"
+              isSelected={includePose}
+              isDisabled={isBusy}
+              onChange={setIncludePose}
+            />
+            <AppListSeparator />
+            <AppListItem title="导出范围与内容">
+              <View className="mt-2">
+                <AppButton isDisabled={isBusy || !repository.isAvailable} onPress={exportData}>
+                  导出{label}
+                </AppButton>
+              </View>
+            </AppListItem>
+          </AppListGroup>
+          <AppDescription>
+            报告本身也包含健康相关数据。导出包含患者头像，单条记录会附带所属患者资料；不包含原始视频。
+          </AppDescription>
+        </View>
+        <View className="gap-2">
+          <AppListGroup>
+            <AppListItem title="删除资料">
+              <View className="mt-2 gap-3">
+                {data.preview ? (
+                  <>
+                    <AppNotice status="warning" isInline>{`确认永久删除${label}？`}</AppNotice>
+                    <AppText>
+                      {data.preview.patients} 位患者、{data.preview.assessments} 条专业评估、
+                      {data.preview.observations} 条观察及对应关键点和原始视频。此操作无法撤销。
+                    </AppText>
+                    <AppButton
+                      variant="danger"
+                      isDisabled={isBusy}
+                      onPress={() =>
+                        void data.deleteData(scope, async () => {
+                          await onDeleted(scope);
+                          setHasDeleted(true);
+                        })
+                      }
+                    >
+                      确认永久删除
+                    </AppButton>
+                    <AppButton
+                      variant="secondary"
+                      isDisabled={isBusy}
+                      onPress={data.cancelDeletion}
+                    >
+                      取消删除
+                    </AppButton>
+                  </>
+                ) : (
                   <AppButton
-                    variant="danger"
-                    isDisabled={isBusy}
-                    onPress={() =>
-                      void data.deleteData(scope, async () => {
-                        await onDeleted(scope);
-                        setHasDeleted(true);
-                      })
-                    }
+                    variant="secondary"
+                    isDisabled={isBusy || !repository.isAvailable}
+                    onPress={() => void data.previewDeletion(scope)}
                   >
-                    确认永久删除
+                    核对删除范围
                   </AppButton>
-                  <AppButton variant="secondary" isDisabled={isBusy} onPress={data.cancelDeletion}>
-                    取消删除
-                  </AppButton>
-                </>
-              ) : (
+                )}
+              </View>
+            </AppListItem>
+          </AppListGroup>
+          <AppDescription>
+            单条观察删除报告、对应关键点和原始视频；删除患者同时移除其头像、评估和全部观察。删除全部资料不会重置采集偏好。
+          </AppDescription>
+        </View>
+        <View className="gap-2">
+          <AppListGroup>
+            <AppListItem title={`孤立文件 · ${data.stats?.orphanFiles ?? '—'} 个`}>
+              <View className="mt-2">
                 <AppButton
                   variant="secondary"
-                  isDisabled={isBusy || !repository.isAvailable}
-                  onPress={() => void data.previewDeletion(scope)}
+                  isDisabled={isBusy || !data.stats?.orphanFiles}
+                  onPress={() => void data.cleanOrphans()}
                 >
-                  核对删除范围
+                  清理孤立文件
                 </AppButton>
-              )}
-            </View>
-          </AppListItem>
-        </AppListGroup>
-        <AppListGroup>
-          <AppListItem
-            title={`孤立文件 · ${data.stats?.orphanFiles ?? '—'} 个`}
-            description="清理已保存目录中没有档案或报告引用的头像、关键点和视频，不移除正在编辑的照片或等待保存的录像。"
-          >
-            <View className="mt-2">
-              <AppButton
-                variant="secondary"
-                isDisabled={isBusy || !data.stats?.orphanFiles}
-                onPress={() => void data.cleanOrphans()}
-              >
-                清理孤立文件
-              </AppButton>
-            </View>
-          </AppListItem>
-        </AppListGroup>
+              </View>
+            </AppListItem>
+          </AppListGroup>
+          <AppDescription>
+            清理已保存目录中没有档案或报告引用的头像、关键点和视频，不移除正在编辑的照片或等待保存的录像。
+          </AppDescription>
+        </View>
       </AppCardStack>
       {data.busy ? <AppLoading>{data.busy}</AppLoading> : null}
       {data.error ? <AppNotice>{data.error}</AppNotice> : null}
       {data.message ? <AppNotice status="default">{data.message}</AppNotice> : null}
-      <AppText variant="caption" className="text-muted">
+      <AppDescription>
         卸载应用或清除应用数据会移除本机资料。导出文件保存在你选择的位置，需要自行保管和删除。
-      </AppText>
+      </AppDescription>
     </ScreenLayout>
   );
 }
