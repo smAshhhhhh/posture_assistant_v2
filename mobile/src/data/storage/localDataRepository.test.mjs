@@ -38,6 +38,11 @@ test('导出按所选患者读取报告及统一指标，并携带任务、协�
     definition: { id: 'short_walk/left_cycles/v1' },
     metric: { value: 0, availability: 'available' },
   };
+  const measurementContext = {
+    taskProtocol: { protocolId: 'short_walk/free-observation', protocolVersion: '1' },
+    metricDefinitionVersion: 1,
+    validationStatus: 'engineering_unvalidated',
+  };
   const data = repository({
     dataManagementVersion: () => 1,
     metricExportVersion: () => 1,
@@ -49,6 +54,7 @@ test('导出按所选患者读取报告及统一指标，并携带任务、协�
           taskId: 'short_walk',
           protocolVersion: 'p1',
           analysisVersion: 'a1',
+          measurementContext,
           taskAnalysis: { metrics: [metric] },
         },
       ]);
@@ -67,6 +73,7 @@ test('导出按所选患者读取报告及统一指标，并携带任务、协�
       taskId: 'short_walk',
       protocolVersion: 'p1',
       analysisVersion: 'a1',
+      measurementContext,
       metrics: [metric],
     },
   ]);

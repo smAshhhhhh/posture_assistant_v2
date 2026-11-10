@@ -36,6 +36,7 @@ import { CapturePreviewLabels } from '../components/CapturePreviewLabels';
 import { CaptureResultNotice } from '../components/CaptureResultNotice';
 import { CaptureStartCard } from '../components/CaptureStartCard';
 import { CaptureTimerCard } from '../components/CaptureTimerCard';
+import { TaskProtocolCard } from '../components/TaskProtocolCard';
 import { useCameraPermission } from '../hooks/useCameraPermission';
 import { useCaptureFlow } from '../hooks/useCaptureFlow';
 
@@ -281,7 +282,6 @@ export function CapturePreparationScreen({
           </AppCardStack>
           {!isCapturing && !isPaused ? (
             <>
-              {preferences.showCaptureHints ? <AppText>{instructions.framing}</AppText> : null}
               {instructions.measurementNotice ? (
                 <AppText>{instructions.measurementNotice}</AppText>
               ) : null}
@@ -341,14 +341,17 @@ export function CapturePreparationScreen({
       {isReading ? <AppLoading>正在读取采集数据…</AppLoading> : null}
       {readError ? <AppNotice>{readError}</AppNotice> : null}
       {flow.session.phase === 'preparing' ? (
-        <CaptureStartCard
-          task={task}
-          patient={patient}
-          isConfirmed={hasSafetyConfirmation}
-          isStarting={flow.isStarting}
-          onConfirm={setHasSafetyConfirmation}
-          onBegin={() => void flow.begin()}
-        />
+        <AppCardStack>
+          <TaskProtocolCard protocol={flow.session.taskProtocol} />
+          <CaptureStartCard
+            task={task}
+            patient={patient}
+            isConfirmed={hasSafetyConfirmation}
+            isStarting={flow.isStarting}
+            onConfirm={setHasSafetyConfirmation}
+            onBegin={() => void flow.begin()}
+          />
+        </AppCardStack>
       ) : null}
     </ScreenLayout>
   );

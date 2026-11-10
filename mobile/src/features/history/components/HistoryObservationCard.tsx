@@ -1,13 +1,7 @@
-import { View } from 'react-native';
-
 import { captureQualityLabels, taskStatusLabels } from '@/domain/observations/types';
 import type { ObservationSummary } from '@/domain/observations/types';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
-import { AppCard } from '@/shared/ui/AppCard';
-import { AppPressable } from '@/shared/ui/AppPressable';
-import { AppText } from '@/shared/ui/AppText';
-
-import { CaptureQualityChip } from './CaptureQualityChip';
+import { AppSummaryCard } from '@/shared/ui/AppSummaryCard';
 
 interface HistoryObservationCardProps {
   readonly observation: ObservationSummary;
@@ -30,9 +24,18 @@ export function HistoryObservationCard({
   const duration = `${(observation.durationMs / 1_000).toFixed(1)} 秒`;
 
   return (
-    <AppPressable
-      className="rounded-[24px]"
-      accessibilityRole="button"
+    <AppSummaryCard
+      title={observation.taskName}
+      description={`${patientCode} · ${affectedSide} · ${observedAt}`}
+      summary={`${taskStatus} · ${repetitions} · ${duration}`}
+      tagLabel={quality}
+      tagColor={
+        observation.captureQuality === 'valid'
+          ? 'success'
+          : observation.captureQuality === 'degraded'
+            ? 'warning'
+            : 'danger'
+      }
       accessibilityLabel={[
         patientCode,
         observation.taskName,
@@ -45,19 +48,6 @@ export function HistoryObservationCard({
       ].join('，')}
       accessibilityHint="打开观察报告"
       onPress={onPress}
-    >
-      <AppCard className="gap-1">
-        <View className="flex-row items-start gap-3">
-          <AppText className="min-w-0 flex-1 font-medium">{observation.taskName}</AppText>
-          <CaptureQualityChip quality={observation.captureQuality} />
-        </View>
-        <AppText className="text-muted" variant="caption">
-          {patientCode} · {affectedSide} · {observedAt}
-        </AppText>
-        <AppText variant="caption">
-          {taskStatus} · {repetitions} · {duration}
-        </AppText>
-      </AppCard>
-    </AppPressable>
+    />
   );
 }

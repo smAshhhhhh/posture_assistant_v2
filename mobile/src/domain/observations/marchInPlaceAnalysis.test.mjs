@@ -187,7 +187,8 @@ test('短采集、截断和缺失数据保持 null；人工完成与辅助状态
     assert.deepEqual(parseObservationReport(report), report);
   }
   const assisted = createObservationReport(patient, session, original, 'assisted', true);
-  assert.equal(assisted.taskStatus, 'assisted');
+  assert.equal(assisted.taskStatus, 'completed');
+  assert.equal(assisted.assistance, 'manual_or_device');
   assert.equal(assisted.repetitions, 4);
   assert.deepEqual(parseObservationReport(assisted), assisted);
   assert.throws(() =>

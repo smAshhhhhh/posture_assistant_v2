@@ -12,12 +12,15 @@ import { parsePoseRecording } from './poseRecording';
 import type { ObservationVideo } from './observationVideo';
 import type { ObservationSummary, TaskStatus } from './types';
 import { analyzeObservation } from './observationAnalysis';
+import { createMeasurementContext } from './measurementContext';
+import type { MeasurementContext } from './measurementContext';
 
 export type ConfirmedTaskStatus = 'completed' | 'partial' | 'assisted' | 'unable';
 
 export interface ObservationReport extends ObservationSummary {
   readonly taskId: AngleObservationTaskId;
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 2 | 3;
+  readonly measurementContext?: MeasurementContext;
   readonly patientCode: string;
   readonly patientRevision: number;
   readonly modelVersion: string;
@@ -50,19 +53,33 @@ export function createObservationReport(
   const task = rehabTasks.find((item) => item.id === taskId);
   if (!task) throw new Error('观察任务不存在');
   const protocol = getAngleObservationProtocol(taskId);
-  const taskStatus: TaskStatus | null = status;
+  const taskStatus: TaskStatus | null = status === 'assisted' ? 'completed' : status;
   if (
     !taskStatus ||
     !['completed', 'partial', 'assisted', 'unable'].includes(taskStatus) ||
-    (hasAssistance && taskStatus === 'completed') ||
-    (!hasAssistance && taskStatus === 'assisted')
+    (!hasAssistance && status === 'assisted')
   ) {
     throw new Error('请确认任务状态与实际辅助情况');
   }
   const validatedRecording = parsePoseRecording(recording);
   const analysis = analyzeObservation(validatedRecording, patient.affectedSide, taskId);
+  const taskAnalysis = createTaskAnalysis(
+    recording.id,
+    recording.durationMs,
+    taskId,
+    taskStatus,
+    analysis,
+  );
+  if (session.taskProtocol && session.taskProtocol.taskType !== taskId) {
+    throw new Error('动作协议与本次任务不一致');
+  }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    measurementContext: createMeasurementContext(
+      taskAnalysis,
+      patient.affectedSide,
+      session.taskProtocol,
+    ),
     id: recording.id,
     patientId: patient.id,
     patientCode: patient.patientCode,
@@ -80,13 +97,7 @@ export function createObservationReport(
     analysisVersion: protocol.analysisVersion,
     cameraView: 'side',
     assistance: hasAssistance ? 'manual_or_device' : 'none',
-    taskAnalysis: createTaskAnalysis(
-      recording.id,
-      recording.durationMs,
-      taskId,
-      taskStatus,
-      analysis,
-    ),
+    taskAnalysis,
   };
 }
 

@@ -1,9 +1,6 @@
-import { Separator } from 'heroui-native/separator';
-import { View } from 'react-native';
-
 import type { CaptureSession } from '@/domain/capture/captureSession';
 import { getTaskInstructions } from '@/domain/tasks/taskInstructions';
-import { AppCard } from '@/shared/ui/AppCard';
+import { AppAccordion } from '@/shared/ui/AppAccordion';
 import { AppText } from '@/shared/ui/AppText';
 
 interface CaptureGuidanceCardProps {
@@ -19,26 +16,32 @@ export function CaptureGuidanceCard({ session, showCaptureHints }: CaptureGuidan
   if (!hasStarted || (!showMovement && !instructions.measurementNotice)) return null;
 
   return (
-    <AppCard className="gap-4">
-      <View className="gap-2">
-        <AppText variant="section">动作指导</AppText>
-        {showMovement ? (
-          <AppText className="leading-[26px]">{instructions.movement}</AppText>
-        ) : null}
-      </View>
-      {instructions.measurementNotice ? (
-        <>
-          {showMovement ? <Separator /> : null}
-          <View className="gap-1">
-            <AppText variant="meta" className="font-medium text-muted">
-              测量说明
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              {instructions.measurementNotice}
-            </AppText>
-          </View>
-        </>
-      ) : null}
-    </AppCard>
+    <AppAccordion
+      defaultExpandedIds={['guidance', 'measurement']}
+      items={[
+        ...(showMovement
+          ? [
+              {
+                id: 'guidance',
+                title: '动作指导',
+                content: <AppText className="leading-[26px]">{instructions.movement}</AppText>,
+              },
+            ]
+          : []),
+        ...(instructions.measurementNotice
+          ? [
+              {
+                id: 'measurement',
+                title: '测量说明',
+                content: (
+                  <AppText variant="caption" className="text-muted">
+                    {instructions.measurementNotice}
+                  </AppText>
+                ),
+              },
+            ]
+          : []),
+      ]}
+    />
   );
 }

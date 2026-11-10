@@ -76,7 +76,7 @@ test('新版原生模块接收躯干报告和关键点，保存回执可重新�
   const expected = report('seated_trunk_lean');
   const saved = [];
   const current = repository({
-    observationContractVersion: () => 2,
+    observationContractVersion: () => 3,
     observationVersion: () => 1,
     jointObservationVersion: () => 1,
     trunkObservationVersion: () => 1,
@@ -94,6 +94,28 @@ test('新版原生模块接收躯干报告和关键点，保存回执可重新�
   assert.equal((await current.list())[0].taskId, 'seated_trunk_lean');
 });
 
+test('旧版三层存储可读取但不能写入新协议，错误快照在写入前被拒绝', async () => {
+  const expected = report('elbow_flexion_extension');
+  const previous = repository({
+    observationVersion: () => 1,
+    observationContractVersion: () => 2,
+    getObservation: async () => JSON.stringify(expected),
+  });
+  assert.deepEqual(await previous.get(expected.id), expected);
+  assert.equal(previous.supportsTask(expected.taskId), false);
+  await assert.rejects(previous.save(expected, pose), { code: 'STORE_UNAVAILABLE' });
+  let writes = 0;
+  const current = repository({
+    observationVersion: () => 1,
+    observationContractVersion: () => 3,
+    saveObservation: async () => {
+      writes++;
+    },
+  });
+  await assert.rejects(current.save({ ...expected, measurementContext: undefined }, pose));
+  assert.equal(writes, 0);
+});
+
 test('旧存储包不能丢弃视频后静默保存，新版保留录像并可读取回放信息', async () => {
   const recording = {
     ...pose,
@@ -109,7 +131,7 @@ test('旧存储包不能丢弃视频后静默保存，新版保留录像并可�
     segments: [{ uri: 'file:///data/user/0/app/files/video.mp4', durationMs: 1000 }],
   };
   const current = repository({
-    observationContractVersion: () => 2,
+    observationContractVersion: () => 3,
     observationVersion: () => 1,
     observationVideoVersion: () => 1,
     saveObservation: async (reportJson, recordingJson) => {
@@ -135,7 +157,7 @@ test('坐站能力独立检查，旧包拒绝保存，新版可保存并回读�
   const expected = report('sit_to_stand');
   const recording = { ...pose, video: { segments: [], error: 'recording_failed' } };
   const current = repository({
-    observationContractVersion: () => 2,
+    observationContractVersion: () => 3,
     observationVersion: () => 1,
     sitToStandObservationVersion: () => 1,
     observationVideoVersion: () => 1,
@@ -175,7 +197,7 @@ test('踏步能力独立检查，旧坐站包不能保存，新版保存报告�
     segments: [{ uri: 'file:///data/user/0/app/files/march.mp4', durationMs: 1000 }],
   };
   const current = repository({
-    observationContractVersion: () => 2,
+    observationContractVersion: () => 3,
     observationVersion: () => 1,
     marchObservationVersion: () => 1,
     observationVideoVersion: () => 1,
@@ -227,7 +249,7 @@ test('步行能力独立检查，旧踏步包不能保存，新版保存报告�
     segments: [{ uri: 'file:///data/user/0/app/files/walk.mp4', durationMs: 1000 }],
   };
   const current = repository({
-    observationContractVersion: () => 2,
+    observationContractVersion: () => 3,
     observationVersion: () => 1,
     shortWalkObservationVersion: () => 1,
     observationVideoVersion: () => 1,

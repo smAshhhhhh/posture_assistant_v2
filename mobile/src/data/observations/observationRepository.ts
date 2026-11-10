@@ -37,7 +37,7 @@ function getStore(): NativeObservationStore {
 }
 
 function supportsTask(taskId: AngleObservationTaskId): boolean {
-  if (nativeStore?.observationVersion?.() !== 1 || nativeStore.observationContractVersion?.() !== 2)
+  if (nativeStore?.observationVersion?.() !== 1 || nativeStore.observationContractVersion?.() !== 3)
     return false;
   if (taskId === 'elbow_flexion_extension') return true;
   if (taskId === 'seated_trunk_lean') return nativeStore.trunkObservationVersion?.() === 1;
@@ -64,14 +64,16 @@ export const observationRepository: ObservationRepository = {
     const store = getStore();
     if (
       !supportsTask(report.taskId) ||
-      store.observationContractVersion?.() !== 2 ||
+      store.observationContractVersion?.() !== 3 ||
+      report.schemaVersion !== 3 ||
       report.sourceSchemaVersion === 1 ||
       (recording.video && store.observationVideoVersion?.() !== 1)
     ) {
       throw Object.assign(new Error('请更新动作观察存储模块'), { code: 'STORE_UNAVAILABLE' });
     }
+    const validatedReport = parseObservationReport(report);
     const value: unknown = JSON.parse(
-      await store.saveObservation(JSON.stringify(report), JSON.stringify(recording)),
+      await store.saveObservation(JSON.stringify(validatedReport), JSON.stringify(recording)),
     );
     return parseObservationReport(value);
   },

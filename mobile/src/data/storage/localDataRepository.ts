@@ -57,6 +57,7 @@ export const localDataRepository: LocalDataRepository = {
         taskId: report.taskId,
         protocolVersion: report.protocolVersion,
         analysisVersion: report.analysisVersion,
+        ...(report.measurementContext ? { measurementContext: report.measurementContext } : {}),
         metrics: extractMotionMetrics(report.taskAnalysis),
       });
     }

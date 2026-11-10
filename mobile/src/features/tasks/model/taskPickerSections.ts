@@ -8,15 +8,14 @@ interface TaskSection {
 
 export function getTaskSections(tasks: readonly RehabTask[]): readonly TaskSection[] {
   return [
-    {
-      id: 'seated',
-      title: '坐姿任务',
-      tasks: tasks.filter((task) => task.posture === '坐姿'),
-    },
-    {
-      id: 'standing_and_walking',
-      title: '站立与步行任务',
-      tasks: tasks.filter((task) => task.posture !== '坐姿'),
-    },
-  ].filter((section) => section.tasks.length > 0);
+    { id: 'upper_limbs', title: '上肢' },
+    { id: 'lower_limbs', title: '下肢' },
+    { id: 'trunk', title: '躯干' },
+    { id: 'whole_body', title: '全身' },
+  ]
+    .map((section) => ({
+      ...section,
+      tasks: tasks.filter((task) => task.bodyRegion === section.title),
+    }))
+    .filter((section) => section.tasks.length > 0);
 }

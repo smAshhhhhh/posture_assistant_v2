@@ -122,7 +122,10 @@ export function ObservationCompareScreen({
                 {taskStatusLabels[changes.later.taskStatus]}
               </AppText>
               <AppText variant="caption" className="text-muted">
-                同患者、任务、患侧、机位、辅助方式、协议、算法和模型；两次采集均有效。
+                同患者、任务、患侧、机位、辅助方式、协议、指标定义、算法和模型；两次采集均有效。
+                {!changes.earlier.measurementContext
+                  ? '两条均为旧记录，完整动作指导未留存，仍需人工核对。'
+                  : ''}
               </AppText>
             </AppCard>
             {changes.metrics.map((metric) => (

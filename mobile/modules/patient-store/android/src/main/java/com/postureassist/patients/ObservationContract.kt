@@ -4,13 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal fun validateObservation(report: JSONObject, pose: JSONObject) {
-  requireRecord(report.optInt("schemaVersion") == 2)
+  requireRecord(report.optInt("schemaVersion") == 3)
   requireRecord(!report.has("analysis") && !report.has("safetyStopReason"))
   requireRecord(!report.has("sourceSchemaVersion") && !report.has("legacySafetyStopReason"))
   val status = report.recordText("taskStatus")
-  requireRecord(status in setOf("completed", "partial", "assisted", "unable"))
+  requireRecord(status in setOf("completed", "partial", "unable"))
   val task = report.getJSONObject("taskAnalysis")
   val taskId = report.recordText("taskId")
+  validateMeasurementContext(report.getJSONObject("measurementContext"), taskId)
   requireRecord(task.recordText("recordingId") == report.recordText("id"))
   requireRecord(task.recordText("taskId") == taskId && task.recordText("taskStatus") == status)
   listOf("protocolVersion", "analysisVersion").forEach {
@@ -45,6 +46,10 @@ internal fun validateObservation(report: JSONObject, pose: JSONObject) {
     put("schemaVersion", 1)
     put("analysis", analysis)
     put("safetyStopReason", JSONObject.NULL)
+    // 仅适配旧校验器，原报告分别保存完成情况与辅助情况。
+    if (status == "completed" && report.recordText("assistance") == "manual_or_device") {
+      put("taskStatus", "assisted")
+    }
   }
   val normalizedPose = normalizePoseRecording(pose)
   validateLegacyObservation(normalizedReport, normalizedPose)

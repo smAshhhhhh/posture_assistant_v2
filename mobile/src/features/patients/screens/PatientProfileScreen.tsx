@@ -11,6 +11,7 @@ import { AppCardStack } from '@/shared/ui/AppCardStack';
 import { AppHeader } from '@/shared/ui/AppHeader';
 import { AppLoading } from '@/shared/ui/AppLoading';
 import { AppText } from '@/shared/ui/AppText';
+import { AppSummaryCard } from '@/shared/ui/AppSummaryCard';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 
@@ -90,20 +91,38 @@ export function PatientProfileScreen({
                 <AppText className="text-muted">尚无已保存的观察记录。</AppText>
               </AppCard>
             ) : null}
-            {observations.slice(0, 3).map((observation) => (
-              <AppCard key={observation.id} className="gap-3">
-                <AppText>
-                  {observation.taskName} · {formatDateTime(observation.observedAt)}
-                </AppText>
-                <AppText className="text-muted">
-                  {taskStatusLabels[observation.taskStatus]} ·{' '}
-                  {captureQualityLabels[observation.captureQuality]}
-                </AppText>
-                <AppButton variant="secondary" onPress={() => onOpenObservation(observation.id)}>
-                  查看报告
-                </AppButton>
-              </AppCard>
-            ))}
+            {observations.slice(0, 3).map((observation) => {
+              const observedAt = formatDateTime(observation.observedAt);
+              const quality = captureQualityLabels[observation.captureQuality];
+              const taskStatus = taskStatusLabels[observation.taskStatus];
+              const repetitionPrefix = observation.taskId === 'short_walk' ? '患侧周期 ' : '';
+              const repetitionUnit = observation.taskId === 'march_in_place' ? '步' : '次';
+              const repetitions = `${repetitionPrefix}${observation.repetitions ?? '—'} ${repetitionUnit}`;
+              const duration = `${(observation.durationMs / 1_000).toFixed(1)} 秒`;
+              const summary = `${taskStatus} · ${repetitions} · ${duration}`;
+
+              return (
+                <AppSummaryCard
+                  key={observation.id}
+                  title={observation.taskName}
+                  description={observedAt}
+                  summary={summary}
+                  tagLabel={quality}
+                  tagColor={
+                    observation.captureQuality === 'valid'
+                      ? 'success'
+                      : observation.captureQuality === 'degraded'
+                        ? 'warning'
+                        : 'danger'
+                  }
+                  accessibilityLabel={[observation.taskName, observedAt, quality, summary].join(
+                    '，',
+                  )}
+                  accessibilityHint="打开观察报告"
+                  onPress={() => onOpenObservation(observation.id)}
+                />
+              );
+            })}
           </AppCardStack>
         ) : null}
       </View>

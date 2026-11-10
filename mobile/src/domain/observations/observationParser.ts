@@ -7,6 +7,7 @@ import { isAngleObservationTask } from './angleProtocols';
 import type { ObservationReport } from './observationReport';
 import { createTaskAnalysis } from './taskAnalysis';
 import { parseTaskAnalysis } from './taskAnalysisParser';
+import { parseMeasurementContext } from './measurementContext';
 
 export { parseObservationSummary } from './legacyObservationParser';
 
@@ -31,13 +32,16 @@ export function parseObservationReport(value: unknown): ObservationReport {
   }
   const summary = parseObservationSummary(value);
   if (
-    record.schemaVersion !== 2 ||
+    (record.schemaVersion !== 2 && record.schemaVersion !== 3) ||
     record.cameraView !== 'side' ||
     summary.taskStatus === 'stopped_safety' ||
     !isAngleObservationTask(summary.taskId) ||
     (record.assistance !== 'none' && record.assistance !== 'manual_or_device') ||
-    (summary.taskStatus === 'completed' && record.assistance !== 'none') ||
+    (record.schemaVersion === 2 &&
+      summary.taskStatus === 'completed' &&
+      record.assistance !== 'none') ||
     (summary.taskStatus === 'assisted' && record.assistance !== 'manual_or_device') ||
+    (record.schemaVersion === 3 && summary.taskStatus === 'assisted') ||
     'analysis' in record ||
     'safetyStopReason' in record ||
     'sourceSchemaVersion' in record ||
@@ -62,7 +66,10 @@ export function parseObservationReport(value: unknown): ObservationReport {
   return {
     ...summary,
     taskId: summary.taskId,
-    schemaVersion: 2,
+    schemaVersion: record.schemaVersion,
+    ...(record.schemaVersion === 3
+      ? { measurementContext: parseMeasurementContext(record.measurementContext, taskAnalysis) }
+      : {}),
     patientCode: readString(record.patientCode),
     patientRevision: readInteger(record.patientRevision, 1),
     modelVersion: readString(record.modelVersion),

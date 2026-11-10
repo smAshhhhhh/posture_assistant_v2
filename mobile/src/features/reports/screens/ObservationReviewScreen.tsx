@@ -1,6 +1,7 @@
 import { getAngleAnalysis } from '@/domain/observations/taskAnalysis';
 import { usePreventRemove } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import type { CaptureSession } from '@/domain/capture/captureSession';
 import { analyzeTask } from '@/domain/observations/observationAnalysis';
@@ -22,6 +23,7 @@ import { AppHeader } from '@/shared/ui/AppHeader';
 import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppRadioGroup } from '@/shared/ui/AppRadioGroup';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTag } from '@/shared/ui/AppTag';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
 import { ObservationReportContent } from '../components/ObservationReportContent';
@@ -152,15 +154,19 @@ export function ObservationReviewScreen({
       }
     >
       <AppText variant="title">{task.name}</AppText>
-      <AppText className="text-muted">
-        {patient.patientCode} · {patient.affectedSide === 'left' ? '左侧' : '右侧'} · 尚未保存
-      </AppText>
+      <View className="flex-row flex-wrap items-center justify-between gap-2 px-4">
+        <AppText className="min-w-0 shrink text-muted">
+          {patient.patientCode} · {patient.affectedSide === 'left' ? '左侧' : '右侧'}
+        </AppText>
+        <AppTag label="尚未保存" color="warning" />
+      </View>
       <ObservationReportContent
         taskId={taskId}
         analysis={getAngleAnalysis(analysis)}
         durationMs={recording.durationMs}
         taskStatus={status}
         hasAssistance={hasAssistance}
+        taskAnalysis={analysis}
       />
       {recording.video ? (
         <AppText>
@@ -179,8 +185,8 @@ export function ObservationReviewScreen({
         未保存数据仅保留在本次会话，关闭应用会丢失。
       </AppText>
       <AppRadioGroup
-        label="根据现场观察确认任务状态"
-        description="识别失败只影响采集质量，不代表患者无法完成。"
+        label="根据现场观察确认完成情况"
+        description="辅助情况单独记录；识别失败不代表患者无法完成。"
         isRequired
         value={status}
         isDisabled={isSaving || isDiscarding}
@@ -191,8 +197,8 @@ export function ObservationReviewScreen({
         }}
         options={[
           {
-            value: hasAssistance ? 'assisted' : 'completed',
-            label: hasAssistance ? '辅助下完成' : '已完成',
+            value: 'completed',
+            label: '已完成',
           },
           { value: 'partial', label: '部分完成' },
           { value: 'unable', label: '无法完成' },

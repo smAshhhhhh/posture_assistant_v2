@@ -13,6 +13,7 @@ import { AppCard } from '@/shared/ui/AppCard';
 import { AppLoading } from '@/shared/ui/AppLoading';
 import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTag } from '@/shared/ui/AppTag';
 
 interface ObservationVideoCardProps {
   readonly id: string;
@@ -56,7 +57,14 @@ export function ObservationVideoCard({ id, repository, Player }: ObservationVide
           <AppText variant="caption" className="text-muted">
             原始视频 · 无声录像 · 暂停区间不录像
           </AppText>
-          {video.isPartial ? <AppText>本次录像曾中断，仅保留成功录制的片段。</AppText> : null}
+          {video.isPartial ? (
+            <View className="gap-2">
+              <View className="flex-row flex-wrap">
+                <AppTag label="录像不完整" color="warning" />
+              </View>
+              <AppText>本次录像曾中断，仅保留成功录制的片段。</AppText>
+            </View>
+          ) : null}
         </>
       ) : status === 'empty' ? (
         <AppCard className="gap-2">

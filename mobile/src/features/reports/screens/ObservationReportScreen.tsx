@@ -1,6 +1,7 @@
 import { getAngleAnalysis } from '@/domain/observations/taskAnalysis';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
+import { View } from 'react-native';
 
 import { safetyStopReasonLabels } from '@/domain/capture/legacyCaptureStatus';
 import type { ObservationVideoPlayerProps } from '@/domain/observations/observationVideo';
@@ -17,6 +18,7 @@ import { AppHeader } from '@/shared/ui/AppHeader';
 import { AppLoading } from '@/shared/ui/AppLoading';
 import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTag } from '@/shared/ui/AppTag';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
 import { ObservationReportContent } from '../components/ObservationReportContent';
@@ -61,9 +63,12 @@ export function ObservationReportScreen({
       {report ? (
         <>
           <AppText variant="title">{report.taskName}</AppText>
-          <AppText className="text-muted">
-            {report.patientCode} · {formatDateTime(report.observedAt)} · 已保存
-          </AppText>
+          <View className="flex-row flex-wrap items-center justify-between gap-2 px-4">
+            <AppText className="min-w-0 shrink text-muted">
+              {report.patientCode} · {formatDateTime(report.observedAt)}
+            </AppText>
+            <AppTag label="已保存" />
+          </View>
           <AppCardStack>
             <ObservationVideoCard key={id} id={id} repository={repository} Player={VideoPlayer} />
             <ObservationReportContent
@@ -72,6 +77,8 @@ export function ObservationReportScreen({
               durationMs={report.durationMs}
               taskStatus={report.taskStatus}
               hasAssistance={report.assistance !== 'none'}
+              taskAnalysis={report.taskAnalysis}
+              measurementContext={report.measurementContext}
             />
           </AppCardStack>
           {report.taskStatus === 'stopped_safety' ? (
@@ -83,8 +90,7 @@ export function ObservationReportScreen({
             </AppText>
           ) : null}
           <AppText variant="caption" className="text-muted">
-            协议 {report.protocolVersion} · 算法 {report.analysisVersion} · 模型{' '}
-            {report.modelVersion}
+            协议 {report.protocolVersion} · 算法 {report.analysisVersion}
           </AppText>
           <AppButton variant="secondary" onPress={onCompare}>
             历史对比

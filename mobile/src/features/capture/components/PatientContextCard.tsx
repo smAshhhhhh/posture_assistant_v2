@@ -8,6 +8,7 @@ import { AppButton } from '@/shared/ui/AppButton';
 import { AppAvatar } from '@/shared/ui/AppAvatar';
 import { AppSearchSelect } from '@/shared/ui/AppSearchSelect';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTag } from '@/shared/ui/AppTag';
 
 interface PatientContextCardProps {
   readonly patient: PatientSummary | null;
@@ -41,6 +42,12 @@ export function PatientContextCard({
           triggerDescription:
             `${affectedSideLabels[item.affectedSide]} · ${ability}` +
             (item.abilityLevel ? '（治疗师评定）' : ''),
+          triggerDescriptionContent: (
+            <View className="flex-row flex-wrap gap-2">
+              <AppTag label={affectedSideLabels[item.affectedSide]} />
+              <AppTag label={ability + (item.abilityLevel ? '（治疗师评定）' : '')} />
+            </View>
+          ),
           startContent: <AppAvatar label={item.patientCode} imageUri={item.photoUri} />,
         };
       })}

@@ -7,6 +7,7 @@ import type { RehabTask } from '@/domain/tasks/taskCatalog';
 import { useAppTheme } from '@/shared/theme/useAppTheme';
 import { AppCard } from '@/shared/ui/AppCard';
 import { AppText } from '@/shared/ui/AppText';
+import { AppTag } from '@/shared/ui/AppTag';
 
 interface TaskOptionCardProps {
   readonly task: RehabTask;
@@ -31,17 +32,13 @@ export function TaskOptionCard({ task, isSelected, onOpen }: TaskOptionCardProps
         hitSlop={{ top: 16, bottom: 16, left: 16 }}
         value={task.id}
       >
-        <View className="flex-1 gap-1">
+        <View className="min-w-0 flex-1 gap-1">
           <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
             <AppText className="shrink font-medium">{task.name}</AppText>
-            {isSelected ? (
-              <AppText variant="caption" className="font-medium text-accent-soft-foreground">
-                当前动作
-              </AppText>
-            ) : null}
+            {isSelected ? <AppTag label="当前动作" color="accent" /> : null}
           </View>
           <AppText className="text-muted" variant="caption">
-            {task.bodyRegion} · {task.posture}
+            {task.posture}
           </AppText>
         </View>
       </RadioGroup.Item>

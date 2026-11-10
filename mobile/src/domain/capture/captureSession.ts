@@ -1,6 +1,8 @@
 import type { CaptureQuality, TaskStatus } from '../observations/types';
 import type { AffectedSide } from '../patients/types';
 import type { RehabTaskId } from '../tasks/taskCatalog';
+import { getTaskProtocol } from '../tasks/taskProtocol';
+import type { TaskProtocol } from '../tasks/taskProtocol';
 
 import { getCaptureBlockers } from './captureReadiness';
 import type { CaptureReadiness } from './captureReadiness';
@@ -15,6 +17,7 @@ export interface CaptureContext {
 }
 
 export interface CaptureSession {
+  readonly taskProtocol: TaskProtocol;
   readonly context: CaptureContext;
   readonly phase: CapturePhase;
   readonly elapsedActiveMs: number;
@@ -36,6 +39,7 @@ export type CaptureEvent =
 
 export function createCaptureSession(context: CaptureContext): CaptureSession {
   return {
+    taskProtocol: getTaskProtocol(context.taskId, context.affectedSide),
     context,
     phase: 'preparing',
     elapsedActiveMs: 0,

@@ -59,10 +59,17 @@ for (const taskId of taskIds) {
       },
     ];
     for (const recording of variants) {
-      currentReports.push({
-        pose: recording,
-        report: createObservationReport(patient, session, recording, 'partial', false),
-      });
+      for (const [status, assisted] of [
+        ['completed', false],
+        ['completed', true],
+        ['partial', true],
+        ['unable', false],
+      ]) {
+        currentReports.push({
+          pose: recording,
+          report: createObservationReport(patient, session, recording, status, assisted),
+        });
+      }
     }
   }
 }

@@ -14,6 +14,7 @@ export interface SearchSelectOption {
   readonly label: string;
   readonly description: string;
   readonly triggerDescription?: string;
+  readonly triggerDescriptionContent?: ReactNode;
   readonly startContent: ReactNode;
 }
 
@@ -62,16 +63,22 @@ export function AppSearchSelect({
       <Select.Trigger
         variant="unstyled"
         className="rounded-[24px]"
-        accessibilityLabel={selected ? `${label}，当前 ${selected.label}` : label}
+        accessibilityLabel={
+          selected
+            ? `${label}，当前 ${selected.label}，${selected.triggerDescription ?? selected.description}`
+            : label
+        }
         accessibilityState={{ expanded: isOpen }}
       >
         <AppCard className="min-h-[82px] flex-row items-center gap-3">
           <View className="size-10 items-center justify-center">{displayed.startContent}</View>
           <View className="min-w-0 flex-1 gap-1">
             <AppText className="font-medium">{displayed.label}</AppText>
-            <AppText className="text-muted" variant="meta">
-              {displayed.triggerDescription ?? displayed.description}
-            </AppText>
+            {displayed.triggerDescriptionContent ?? (
+              <AppText className="text-muted" variant="meta">
+                {displayed.triggerDescription ?? displayed.description}
+              </AppText>
+            )}
           </View>
         </AppCard>
       </Select.Trigger>

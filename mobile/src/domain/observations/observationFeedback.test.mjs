@@ -25,10 +25,12 @@ test('七任务无效数据只提示缺失，不能生成零周期或临床推�
     );
     assert.equal(analysis.repetitions, null);
     assert.match(feedback[0].message, /不代表患者无法完成/);
+    assert.equal(feedback[0].category, 'capture');
+    assert.equal(feedback[0].severity, 'danger');
   }
 });
 
-test('清晰静止的四种关节任务保留零值，并说明对应完整周期', () => {
+test('清晰静止的四种关节任务保留零值，动作提示不将零值解释为无法完成', () => {
   const recording = marchRecording(Array.from({ length: 50 }, () => ({})));
   const landmarks = recording.frames[0].landmarks.map((point) => ({ ...point }));
   for (const offset of [0, 1]) {
@@ -62,6 +64,8 @@ test('清晰静止的四种关节任务保留零值，并说明对应完整周�
         ['no_complete_cycle'],
       );
       assert.match(feedback[0].message, /零次不代表患者无法完成/);
+      assert.equal(feedback[0].category, 'movement');
+      assert.equal(feedback[0].severity, 'warning');
     }
   }
 });
@@ -75,10 +79,11 @@ test('踏步连续同侧建议来自实际序列，正常交替不显示此建�
     );
     assert.equal(repeated.marchInPlace.alternationErrors, 2);
     const feedback = getObservationFeedback('march_in_place', repeated, 'assisted');
-    assert.equal(
-      feedback.find((item) => item.code === 'same_side_steps')?.message.includes('2 次'),
-      true,
-    );
+    const hint = feedback.find((item) => item.code === 'same_side_steps');
+    assert.equal(hint?.category, 'stepping');
+    assert.equal(hint?.severity, 'warning');
+    assert.match(hint?.message ?? '', /回放/);
+    assert.doesNotMatch(hint?.message ?? '', /\d|次连续同侧/);
     const alternating = analyzeObservation(marchRecording(), side, 'march_in_place');
     assert.equal(
       getObservationFeedback('march_in_place', alternating, 'completed').some(
@@ -97,6 +102,10 @@ test('步行单侧周期按双侧证据提示，平均耗时缺失不补零', ()
     assert.ok(analysis.repetitions > 0);
     const feedback = getObservationFeedback('short_walk', analysis, 'completed');
     assert.ok(feedback.some((item) => item.code === 'one_side_cycles'));
+    const hint = feedback.find((item) => item.code === 'one_side_cycles');
+    assert.equal(hint?.category, 'walking');
+    assert.match(hint?.message ?? '', /双腿.*入镜/);
+    assert.doesNotMatch(hint?.message ?? '', /平均耗时|左右对称性/);
     const key = opposite === 'left' ? 'meanLeftCycleDurationMs' : 'meanRightCycleDurationMs';
     assert.equal(analysis.shortWalk[key], null);
   }
@@ -118,6 +127,9 @@ test('清晰坐站、踏步和步行只建议结合回放，不给出异常阈�
       ['review_video'],
     );
     assert.deepEqual(analysis, snapshot);
+    assert.equal(feedback[0].category, 'movement');
+    assert.equal(feedback[0].severity, 'info');
+    assert.doesNotMatch(feedback[0].message, /关节.*可用/);
   }
 });
 
@@ -130,7 +142,14 @@ test('真实采样间断给出质量提示，安全停止始终排在第一条',
   assert.equal(analysis.captureQuality, 'degraded');
   const feedback = getObservationFeedback('sit_to_stand', analysis, 'stopped_safety');
   assert.equal(feedback[0].code, 'stopped_safety');
+  assert.equal(feedback[0].category, 'completion');
+  assert.equal(feedback[0].severity, 'danger');
   assert.ok(feedback.some((item) => item.code === 'degraded'));
+  const qualityHint = feedback.find((item) => item.code === 'degraded');
+  assert.equal(qualityHint?.category, 'capture');
+  assert.equal(qualityHint?.severity, 'warning');
+  assert.match(qualityHint?.message ?? '', /复核是否漏计/);
+  assert.doesNotMatch(qualityHint?.message ?? '', /\d|占比|最长数据间断|有效样本/);
   const invalid = analyzeObservation({ ...recording, frames: [] }, 'left', 'sit_to_stand');
   assert.deepEqual(
     getObservationFeedback('sit_to_stand', invalid, 'stopped_safety').map((item) => item.code),

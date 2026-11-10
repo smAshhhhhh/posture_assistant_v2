@@ -16,6 +16,7 @@ import { AppLoading } from '@/shared/ui/AppLoading';
 import { AppNotice } from '@/shared/ui/AppNotice';
 import { AppText } from '@/shared/ui/AppText';
 import { AppTextField } from '@/shared/ui/AppTextField';
+import { AppTag } from '@/shared/ui/AppTag';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ScreenLayout } from '@/shared/ui/ScreenLayout';
 
@@ -89,12 +90,16 @@ export function PatientsScreen({
                   <AppAvatar label={patient.patientCode} imageUri={patient.photoUri} size="md" />
                   <View className="min-w-0 flex-1 gap-1">
                     <AppText className="font-medium">{patient.patientCode}</AppText>
-                    <AppText className="text-muted" variant="caption">
-                      {affectedSideLabels[patient.affectedSide]} ·{' '}
-                      {patient.abilityLevel
-                        ? abilityLevelLabels[patient.abilityLevel]
-                        : '待专业评估'}
-                    </AppText>
+                    <View className="flex-row flex-wrap gap-2">
+                      <AppTag label={affectedSideLabels[patient.affectedSide]} />
+                      <AppTag
+                        label={
+                          patient.abilityLevel
+                            ? `${abilityLevelLabels[patient.abilityLevel]}（专业评定）`
+                            : '待专业评估'
+                        }
+                      />
+                    </View>
                     <AppText className="text-muted" variant="meta">
                       {formatDateTime(patient.lastObservedAt)}
                     </AppText>

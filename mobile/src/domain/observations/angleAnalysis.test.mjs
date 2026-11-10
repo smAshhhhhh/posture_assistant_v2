@@ -185,8 +185,10 @@ test('新增任务的完成状态与质量独立，辅助完成需与现场情�
         false,
       ),
     );
-    assert.throws(() =>
-      createObservationReport(patient, session(taskId), recording([]), 'completed', true),
+    assert.equal(
+      createObservationReport(patient, session(taskId), recording([]), 'completed', true)
+        .assistance,
+      'manual_or_device',
     );
   }
 });

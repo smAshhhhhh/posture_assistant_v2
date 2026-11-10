@@ -85,7 +85,7 @@ class PatientStoreModule : Module() {
       mainHandler.post { videoViews.forEach { it.suspendPlayback() } }
     }
     Function("observationVersion") { 1 }
-    Function("observationContractVersion") { 2 }
+    Function("observationContractVersion") { 3 }
     Function("jointObservationVersion") { 1 }
     Function("trunkObservationVersion") { 1 }
     Function("sitToStandObservationVersion") { 1 }

@@ -67,6 +67,29 @@ export function getComparisonIssues(
   if (first.protocolVersion !== second.protocolVersion) issues.push('采集协议版本不同。');
   if (first.analysisVersion !== second.analysisVersion) issues.push('分析算法版本不同。');
   if (first.modelVersion !== second.modelVersion) issues.push('姿态模型版本不同。');
+  const firstContext = first.measurementContext;
+  const secondContext = second.measurementContext;
+  if (Boolean(firstContext) !== Boolean(secondContext)) {
+    issues.push('旧记录缺少动作协议和指标定义快照，不能确认测量条件一致。');
+  } else if (firstContext && secondContext) {
+    const firstProtocol = firstContext.taskProtocol;
+    const secondProtocol = secondContext.taskProtocol;
+    if (
+      firstProtocol.protocolId !== secondProtocol.protocolId ||
+      firstProtocol.protocolVersion !== secondProtocol.protocolVersion
+    ) {
+      issues.push('动作指导协议版本不同。');
+    } else if (JSON.stringify(firstProtocol) !== JSON.stringify(secondProtocol)) {
+      issues.push('动作指导内容不同。');
+    }
+    if (
+      firstContext.metricDefinitionVersion !== secondContext.metricDefinitionVersion ||
+      JSON.stringify(firstContext.metricDefinitions) !==
+        JSON.stringify(secondContext.metricDefinitions)
+    ) {
+      issues.push('指标定义版本或内容不同。');
+    }
+  }
   if (first.captureQuality !== 'valid' || second.captureQuality !== 'valid') {
     issues.push('仅采集有效的记录参与直接对比。');
   }

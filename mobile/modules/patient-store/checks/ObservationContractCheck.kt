@@ -21,7 +21,15 @@ fun main(args: Array<String>) {
       rejected++
     }
     reject { changed, _ -> changed.put("taskStatus", "stopped_safety") }
-    reject { changed, _ -> changed.getJSONObject("taskAnalysis").put("taskStatus", "unable") }
+    reject { changed, _ -> changed.getJSONObject("taskAnalysis").put("taskStatus",
+      if (report.getString("taskStatus") == "unable") "completed" else "unable") }
+    reject { changed, _ -> changed.remove("measurementContext") }
+    reject { changed, _ -> changed.getJSONObject("measurementContext")
+      .getJSONObject("taskProtocol").put("taskType", "other") }
+    reject { changed, _ -> changed.getJSONObject("measurementContext")
+      .put("metricDefinitionVersion", 2) }
+    reject { changed, _ -> changed.getJSONObject("measurementContext")
+      .getJSONArray("metricDefinitions").getJSONObject(0).put("unit", "count") }
     reject { _, changed -> changed.getJSONObject("metadata").put("schemaVersion", 1) }
     val segments = pose.getJSONArray("segments")
     if (segments.length() == 0) continue

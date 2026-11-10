@@ -140,7 +140,10 @@ test('原生关键点边界拒绝乱序、越界时间、缺少点数与非有�
 
 test('任务状态人工确认且与采集质量独立，不创建安全停止报告', () => {
   assert.throws(() => createObservationReport(patient, finished, clean, null, false));
-  assert.throws(() => createObservationReport(patient, finished, clean, 'completed', true));
+  assert.equal(
+    createObservationReport(patient, finished, clean, 'completed', true).assistance,
+    'manual_or_device',
+  );
   assert.throws(() =>
     createObservationReport({ ...patient, id: 'design-1' }, finished, clean, 'completed', false),
   );
@@ -165,7 +168,7 @@ test('报告回读拒绝不一致的活动范围、空指标、协议和辅助�
   const report = createObservationReport(patient, finished, clean, 'completed', false);
   for (const invalid of [
     { ...report, protocolVersion: 'other' },
-    { ...report, assistance: 'manual_or_device' },
+    { ...report, assistance: 'unknown' },
     { ...report, patientRevision: 1.5 },
     {
       ...report,
