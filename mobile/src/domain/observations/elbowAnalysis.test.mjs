@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import { loadTypeScript } from '../../../scripts/loadTypeScript.mjs';
 import { createObservationReport } from './recordingFixtures.mjs';
 
-const { analyzeElbow, getElbowAngle } = await loadTypeScript(
-  'src/domain/observations/elbowAnalysis.ts',
+const { analyzeJoint, getJointAngle } = await loadTypeScript(
+  'src/domain/observations/angleAnalysis.ts',
 );
 const { parsePoseRecording } = await loadTypeScript(
   'src/domain/observations/legacyPoseRecording.ts',
@@ -69,20 +69,24 @@ const finished = transitionCaptureSession(started, { type: 'finish', atMs: 5_000
 test('肘角恢复图像宽高比，左右侧正确且拒绝低置信度和退化骨段', () => {
   for (const side of ['left', 'right']) {
     for (const degrees of [0, 40, 90, 135, 180]) {
-      assert.ok(Math.abs(getElbowAngle(frame(0, degrees, side), side) - degrees) < 1e-6);
+      const angle = getJointAngle(frame(0, degrees, side), side, 'elbow_flexion_extension');
+      assert.ok(Math.abs(angle - degrees) < 1e-6);
     }
   }
   const hidden = frame(0);
   hidden.landmarks[13].visibility = 0.49;
-  assert.equal(getElbowAngle(hidden, 'left'), null);
+  assert.equal(getJointAngle(hidden, 'left', 'elbow_flexion_extension'), null);
   const degenerate = frame(0);
   degenerate.landmarks[11] = degenerate.landmarks[13];
-  assert.equal(getElbowAngle(degenerate, 'left'), null);
-  assert.equal(getElbowAngle({ ...frame(0), isInPreview: false }, 'left'), null);
+  assert.equal(getJointAngle(degenerate, 'left', 'elbow_flexion_extension'), null);
+  assert.equal(
+    getJointAngle({ ...frame(0), isInPreview: false }, 'left', 'elbow_flexion_extension'),
+    null,
+  );
 });
 
 test('真实零周期与缺失指标区分，低覆盖和截断不展示可信指标', () => {
-  const valid = analyzeElbow(clean, 'left');
+  const valid = analyzeJoint(clean, 'left', 'elbow_flexion_extension');
   assert.equal(valid.captureQuality, 'valid');
   assert.equal(valid.repetitions, 0);
   assert.ok(Math.abs(valid.rangeOfMotion) < 1e-6);
@@ -91,7 +95,7 @@ test('真实零周期与缺失指标区分，低覆盖和截断不展示可信�
     recording([frame(0)], 100),
     { ...clean, isTruncated: true },
   ]) {
-    const invalid = analyzeElbow(input, 'left');
+    const invalid = analyzeJoint(input, 'left', 'elbow_flexion_extension');
     assert.equal(invalid.captureQuality, 'invalid_capture');
     assert.equal(invalid.rangeOfMotion, null);
     assert.equal(invalid.repetitions, null);
@@ -101,21 +105,26 @@ test('真实零周期与缺失指标区分，低覆盖和截断不展示可信�
 
 test('周期需要伸展、屈曲、回伸，缺失区间与暂停不能跨段凑出周期', () => {
   const cycle = Array.from({ length: 40 }, (_, i) => frame(i * 100, i < 10 || i >= 25 ? 165 : 70));
-  assert.equal(analyzeElbow(recording(cycle), 'left').repetitions, 1);
+  assert.equal(analyzeJoint(recording(cycle), 'left', 'elbow_flexion_extension').repetitions, 1);
   const interrupted = cycle.map((entry, i) =>
     i === 23 ? { ...entry, isInPreview: false } : entry,
   );
-  assert.equal(analyzeElbow(recording(interrupted), 'left').repetitions, 0);
-  assert.equal(analyzeElbow(recording(interrupted), 'left').series[23].angle, null);
+  const interruptedAnalysis = analyzeJoint(
+    recording(interrupted),
+    'left',
+    'elbow_flexion_extension',
+  );
+  assert.equal(interruptedAnalysis.repetitions, 0);
+  assert.equal(interruptedAnalysis.series[23].angle, null);
   const jump = cycle.filter((_, i) => i < 23 || i > 27);
-  assert.equal(analyzeElbow(recording(jump), 'left').repetitions, 0);
+  assert.equal(analyzeJoint(recording(jump), 'left', 'elbow_flexion_extension').repetitions, 0);
 });
 
 test('覆盖率按时间计算，长漏检降级，集中在短时间内的多帧不能冒充有效采集', () => {
   const gap = clean.frames.map((entry, i) =>
     i >= 15 && i <= 22 ? { ...entry, isInPreview: false } : entry,
   );
-  const result = analyzeElbow(recording(gap), 'left');
+  const result = analyzeJoint(recording(gap), 'left', 'elbow_flexion_extension');
   assert.equal(result.captureQuality, 'degraded');
   assert.equal(result.longestGapMs, 900);
   assert.ok(result.coverage < 0.85 && result.coverage >= 0.5);
@@ -123,7 +132,10 @@ test('覆盖率按时间计算，长漏检降级，集中在短时间内的多�
     Array.from({ length: 40 }, (_, i) => frame(i)),
     4_000,
   );
-  assert.equal(analyzeElbow(burst, 'left').captureQuality, 'invalid_capture');
+  assert.equal(
+    analyzeJoint(burst, 'left', 'elbow_flexion_extension').captureQuality,
+    'invalid_capture',
+  );
 });
 
 test('原生关键点边界拒绝乱序、越界时间、缺少点数与非有限坐标', () => {

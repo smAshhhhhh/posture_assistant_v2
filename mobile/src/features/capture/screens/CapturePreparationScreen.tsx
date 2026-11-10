@@ -11,7 +11,6 @@ import type { PoseCameraGateway, PoseCameraPreviewProps } from '@/domain/capture
 import { getRequiredLandmarks } from '@/domain/capture/requiredLandmarks';
 import { affectedSideLabels } from '@/domain/patients/types';
 import type { PatientProfile } from '@/domain/patients/patientRecord';
-import { isAngleObservationTask } from '@/domain/observations/angleProtocols';
 import type { PoseRecording } from '@/domain/observations/poseRecording';
 import type { RehabTask } from '@/domain/tasks/taskCatalog';
 import type { AppPreferences } from '@/domain/settings/appPreferences';
@@ -81,7 +80,6 @@ export function CapturePreparationScreen({
   const reading = useRef(false);
   const mounted = useRef(true);
   const hasNavigated = useRef(false);
-  const shouldRecord = isAngleObservationTask(task.id);
   // 同一次观察固定使用进入页面时的模型，暂停恢复也不能改变。
   const [poseModel] = useState(preferences.poseModel);
   const isModelSupported = poseModel === 'lite' || poseGateway.canSelectPoseModel === true;
@@ -103,7 +101,6 @@ export function CapturePreparationScreen({
     isFocused,
     gateway: poseGateway,
     hasSafetyConfirmation,
-    shouldRecord,
     canSaveObservation,
     canUsePoseModel: isModelSupported,
   });
@@ -166,9 +163,7 @@ export function CapturePreparationScreen({
     };
   }, [poseGateway]);
   usePreventRemove(
-    !canDiscard &&
-      !reviewRecording &&
-      (isCapturing || isPaused || flow.isStarting || (hasFinished && shouldRecord)),
+    !canDiscard && !reviewRecording && (isCapturing || isPaused || flow.isStarting || hasFinished),
     () => {
       if (reading.current || flow.isStarting || flow.isReleasing) return;
       confirmAction({
@@ -223,7 +218,6 @@ export function CapturePreparationScreen({
           isReleasing={flow.isReleasing}
           releaseError={flow.releaseError}
           session={flow.session}
-          canReview={shouldRecord}
           isReading={isReading || isDiscarding}
           onReview={() => void review()}
           onBack={onBack}
@@ -314,17 +308,15 @@ export function CapturePreparationScreen({
           ) : null}
           <AppText className="text-muted" variant="caption">
             {poseGateway.isAvailable
-              ? shouldRecord
-                ? '本次会录制无声原始视频，结束确认后随观察记录保存到本机，可在记录中回放。'
-                : '此任务的运动分析、录像与记录保存将在后续阶段接入。'
+              ? '本次会录制无声原始视频，结束确认后随观察记录保存到本机，可在记录中回放。'
               : '此安装包尚未包含相机模块，请更新安装包后使用。'}
           </AppText>
         </>
       )}
-      {shouldRecord && (!poseGateway.canRecord || !poseGateway.canRecordVideo) ? (
+      {!poseGateway.canRecord || !poseGateway.canRecordVideo ? (
         <AppNotice status="warning">请重新构建安装包，加载竖向视频与关键点记录能力。</AppNotice>
       ) : null}
-      {shouldRecord && !canSaveObservation ? (
+      {!canSaveObservation ? (
         <AppNotice status="warning">请重新构建安装包，加载此任务的报告存储能力。</AppNotice>
       ) : null}
       {!isModelSupported ? (

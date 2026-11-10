@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import { iconSvg, logoSvg } from '../branding/brandAssets';
+import { logoSvg } from '../branding/brandAssets';
 
 interface AppLogoProps {
   readonly style?: StyleProp<ViewStyle>;
@@ -21,8 +21,4 @@ export function AppLogo({ style }: AppLogoProps) {
       accessibilityLabel="Posture Assistant"
     />
   );
-}
-
-export function AppIcon({ size = 32 }: { readonly size?: number }) {
-  return <SvgXml xml={iconSvg} width={size} height={size} accessible={false} />;
 }

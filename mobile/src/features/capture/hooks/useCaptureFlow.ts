@@ -26,7 +26,6 @@ interface CaptureFlowOptions {
   readonly isFocused: boolean;
   readonly hasSafetyConfirmation: boolean;
   readonly gateway: PoseCameraGateway;
-  readonly shouldRecord: boolean;
   readonly canSaveObservation: boolean;
   readonly canUsePoseModel: boolean;
 }
@@ -37,7 +36,6 @@ export function useCaptureFlow({
   isFocused,
   hasSafetyConfirmation,
   gateway,
-  shouldRecord,
   canSaveObservation,
   canUsePoseModel,
 }: CaptureFlowOptions) {
@@ -182,10 +180,7 @@ export function useCaptureFlow({
       setRecordingError('请允许使用相机后，再开始采集。');
       return;
     }
-    if (
-      shouldRecord &&
-      (!gateway.canRecord || !gateway.canRecordVideo || !gateway.beginRecording)
-    ) {
+    if (!gateway.canRecord || !gateway.canRecordVideo || !gateway.beginRecording) {
       setRecordingError('请重新构建安装包，加载竖向视频与关键点记录能力。');
       return;
     }
@@ -193,7 +188,7 @@ export function useCaptureFlow({
       setRecordingError('请更新安装包以使用所选模型，或在设置中改用 Lite。');
       return;
     }
-    if (shouldRecord && !canSaveObservation) {
+    if (!canSaveObservation) {
       setRecordingError('请重新构建安装包，加载此任务的报告存储能力。');
       return;
     }
@@ -227,7 +222,7 @@ export function useCaptureFlow({
         if (!isReady) throw new Error('相机未能就绪');
       }
       if (!isCurrent()) return;
-      if (shouldRecord) await gateway.beginRecording?.(phase === 'paused');
+      await gateway.beginRecording(phase === 'paused');
       if (!isCurrent()) {
         if (isMounted.current && token === startGeneration.current) interrupt('device_error');
         return;
@@ -255,7 +250,6 @@ export function useCaptureFlow({
     interrupt,
     permission,
     readiness,
-    shouldRecord,
     updateCamera,
   ]);
 

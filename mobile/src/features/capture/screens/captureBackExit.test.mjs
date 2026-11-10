@@ -78,7 +78,6 @@ function createScreen(phase = 'capturing') {
     },
     '@/domain/capture/captureFeedback': { getCaptureFeedback: () => ({}) },
     '@/domain/capture/requiredLandmarks': { getRequiredLandmarks: () => [] },
-    '@/domain/observations/angleProtocols': { isAngleObservationTask: () => true },
     '@/domain/patients/types': { affectedSideLabels: { left: '左侧' } },
     '@/domain/tasks/taskInstructions': { getTaskInstructions: () => ({}) },
     '@/shared/theme/tokens': { layoutTokens: { videoAspectRatio: 3 / 4 } },
